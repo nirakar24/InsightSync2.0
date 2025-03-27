@@ -6,7 +6,10 @@ import {
   insertCustomerSchema,
   insertProductSchema,
   insertDealSchema,
-  insertTicketSchema
+  insertTicketSchema,
+  insertTaskSchema,
+  insertTeamMemberSchema,
+  insertActivityLogSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -377,6 +380,177 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete ticket" });
+    }
+  });
+
+  // Analytics routes for enhanced interactive features
+  
+  // Customer analytics
+  app.get(`${apiPrefix}/analytics/customers/churn-risk`, async (req, res) => {
+    try {
+      const customers = await storage.getCustomersWithChurnRisk();
+      res.json(customers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch customers with churn risk" });
+    }
+  });
+
+  app.get(`${apiPrefix}/analytics/customers/:id/engagement`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid customer ID" });
+      }
+
+      const engagementMetrics = await storage.getCustomerEngagementMetrics(id);
+      if (!engagementMetrics) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      res.json(engagementMetrics);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch customer engagement metrics" });
+    }
+  });
+
+  // Product analytics
+  app.get(`${apiPrefix}/analytics/products/inventory`, async (req, res) => {
+    try {
+      const inventory = await storage.getProductInventory();
+      res.json(inventory);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch product inventory" });
+    }
+  });
+
+  app.get(`${apiPrefix}/analytics/products/:id/performance`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid product ID" });
+      }
+
+      const performance = await storage.getProductPerformance(id);
+      if (!performance) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      res.json(performance);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch product performance metrics" });
+    }
+  });
+
+  // Deal analytics
+  app.get(`${apiPrefix}/analytics/deals/by-stage/:stage`, async (req, res) => {
+    try {
+      const stage = req.params.stage;
+      const deals = await storage.getDealsByStage(stage);
+      res.json(deals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch deals by stage" });
+    }
+  });
+
+  app.get(`${apiPrefix}/analytics/deals/by-assignee/:assignee`, async (req, res) => {
+    try {
+      const assignee = req.params.assignee;
+      const deals = await storage.getDealsByAssignee(assignee);
+      res.json(deals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch deals by assignee" });
+    }
+  });
+
+  // Dashboard advanced analytics
+  app.get(`${apiPrefix}/analytics/dashboard/churn-metrics`, async (req, res) => {
+    try {
+      const metrics = await storage.getChurnMetrics();
+      res.json(metrics);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch churn metrics" });
+    }
+  });
+
+  app.get(`${apiPrefix}/analytics/dashboard/team-analytics`, async (req, res) => {
+    try {
+      const analytics = await storage.getTeamAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch team analytics" });
+    }
+  });
+
+  app.get(`${apiPrefix}/analytics/dashboard/sales-performance`, async (req, res) => {
+    try {
+      const performance = await storage.getSalesPerformance();
+      res.json(performance);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch sales performance metrics" });
+    }
+  });
+
+  // Team members routes
+  app.get(`${apiPrefix}/team-members`, async (req, res) => {
+    try {
+      const members = await storage.getTeamMembers();
+      res.json(members);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch team members" });
+    }
+  });
+
+  app.get(`${apiPrefix}/team-members/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid team member ID" });
+      }
+
+      const member = await storage.getTeamMember(id);
+      if (!member) {
+        return res.status(404).json({ message: "Team member not found" });
+      }
+
+      res.json(member);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch team member" });
+    }
+  });
+
+  app.post(`${apiPrefix}/team-members`, async (req, res) => {
+    try {
+      const memberData = insertTeamMemberSchema.parse(req.body);
+      const newMember = await storage.createTeamMember(memberData);
+      res.status(201).json(newMember);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid team member data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create team member" });
+    }
+  });
+
+  app.put(`${apiPrefix}/team-members/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid team member ID" });
+      }
+
+      const memberData = insertTeamMemberSchema.partial().parse(req.body);
+      const updatedMember = await storage.updateTeamMember(id, memberData);
+      
+      if (!updatedMember) {
+        return res.status(404).json({ message: "Team member not found" });
+      }
+
+      res.json(updatedMember);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid team member data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update team member" });
     }
   });
 

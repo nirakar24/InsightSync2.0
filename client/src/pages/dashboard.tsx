@@ -7,9 +7,38 @@ import RecentCustomers from '@/components/dashboard/RecentCustomers';
 import TopProducts from '@/components/dashboard/TopProducts';
 import SalesPipeline from '@/components/dashboard/SalesPipeline';
 import SupportTickets from '@/components/dashboard/SupportTickets';
+import CustomerChurnMetrics from '@/components/customers/CustomerChurnMetrics';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useQuery } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 
 const Dashboard: React.FC = () => {
   const [timeRange, setTimeRange] = useState('last30days');
+  const { toast } = useToast();
+  
+  // Fetch sales performance data
+  const { data: salesData } = useQuery({
+    queryKey: ['/api/analytics/dashboard/sales-performance'],
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to load sales performance data",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Fetch team analytics data
+  const { data: teamData } = useQuery({
+    queryKey: ['/api/analytics/dashboard/team-analytics'],
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to load team analytics data",
+        variant: "destructive"
+      });
+    }
+  });
 
   return (
     <Layout>
@@ -49,7 +78,7 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <KpiCard 
             title="Total Revenue" 
-            value="₹24.5L" 
+            value={salesData?.pipeline?.totalValue ? `₹${(salesData.pipeline.totalValue / 100000).toFixed(1)}L` : "₹24.5L"} 
             change={12.5} 
             icon="payments" 
             color="blue" 
@@ -65,38 +94,61 @@ const Dashboard: React.FC = () => {
           
           <KpiCard 
             title="Conversion Rate" 
-            value="24.8%" 
+            value={salesData?.conversion?.leadToQualified ? `${salesData.conversion.leadToQualified}%` : "24.8%"} 
             change={-1.7} 
             icon="autorenew" 
             color="purple" 
           />
           
           <KpiCard 
-            title="Avg Order Value" 
-            value="₹8,642" 
+            title="Win Rate" 
+            value={salesData?.pipeline?.winRate ? `${salesData.pipeline.winRate}%` : "68.9%"} 
             change={3.8} 
-            icon="shopping_cart" 
+            icon="verified" 
             color="amber" 
           />
         </div>
         
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <RevenueChart />
-          <CategoryPieChart />
-        </div>
+        <Tabs defaultValue="overview">
+          <TabsList className="mb-6">
+            <TabsTrigger value="overview">Performance Overview</TabsTrigger>
+            <TabsTrigger value="churn">Customer Retention</TabsTrigger>
+            <TabsTrigger value="sales">Sales Pipeline</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="overview">
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+              <div className="lg:col-span-2">
+                <RevenueChart />
+              </div>
+              <CategoryPieChart />
+            </div>
 
-        {/* Recent Customers & Top Products */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <RecentCustomers />
-          <TopProducts />
-        </div>
-        
-        {/* Sales Pipeline & Support Tickets */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <SalesPipeline />
-          <SupportTickets />
-        </div>
+            {/* Recent Customers & Top Products */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <RecentCustomers />
+              <TopProducts />
+            </div>
+            
+            {/* Support Tickets */}
+            <div className="grid grid-cols-1 gap-6">
+              <SupportTickets />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="churn">
+            <div className="grid grid-cols-1 gap-6 mb-6">
+              <CustomerChurnMetrics />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="sales">
+            <div className="grid grid-cols-1 gap-6">
+              <SalesPipeline />
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );

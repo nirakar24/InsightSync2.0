@@ -54,7 +54,11 @@ const formSchema = z.object({
   status: z.string().default("active"),
 });
 
-const CustomerList: React.FC = () => {
+interface CustomerListProps {
+  onCustomerSelect?: (customerId: number) => void;
+}
+
+const CustomerList: React.FC<CustomerListProps> = ({ onCustomerSelect }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
@@ -221,14 +225,26 @@ const CustomerList: React.FC = () => {
             </TableHeader>
             <TableBody>
               {filteredCustomers?.map((customer) => (
-                <TableRow key={customer.id}>
+                <TableRow 
+                  key={customer.id} 
+                  className={onCustomerSelect ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800" : ""}
+                  onClick={() => onCustomerSelect && onCustomerSelect(customer.id)}
+                >
                   <TableCell>
                     <div className="flex items-center">
-                      <img
-                        src={customer.avatar}
-                        alt={`${customer.name} avatar`}
-                        className="w-8 h-8 rounded-full mr-2"
-                      />
+                      {customer.avatar ? (
+                        <img
+                          src={customer.avatar}
+                          alt={`${customer.name} avatar`}
+                          className="w-8 h-8 rounded-full mr-2"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center mr-2">
+                          <span className="text-sm font-medium text-slate-500 dark:text-slate-300">
+                            {customer.name.charAt(0)}
+                          </span>
+                        </div>
+                      )}
                       <span className="font-medium">{customer.name}</span>
                     </div>
                   </TableCell>
@@ -247,7 +263,7 @@ const CustomerList: React.FC = () => {
                           : 'bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300'
                       }`}
                     >
-                      {customer.status.charAt(0).toUpperCase() + customer.status.slice(1)}
+                      {customer.status ? customer.status.charAt(0).toUpperCase() + customer.status.slice(1) : 'Unknown'}
                     </span>
                   </TableCell>
                 </TableRow>

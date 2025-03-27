@@ -44,6 +44,14 @@ interface Product {
   status: string;
   icon: string;
   trend: string;
+  stockAvailable?: number;
+  needsRestock?: boolean;
+  popularity?: number;
+}
+
+interface ProductListProps {
+  onProductClick?: (productId: number) => void;
+  showPerformanceData?: boolean;
 }
 
 const formSchema = z.object({
@@ -57,7 +65,7 @@ const formSchema = z.object({
   trend: z.string().default("0"),
 });
 
-const ProductList: React.FC = () => {
+const ProductList: React.FC<ProductListProps> = ({ onProductClick, showPerformanceData = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
@@ -249,11 +257,15 @@ const ProductList: React.FC = () => {
             </TableHeader>
             <TableBody>
               {filteredProducts?.map((product) => (
-                <TableRow key={product.id}>
+                <TableRow 
+                  key={product.id}
+                  className={onProductClick ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800" : ""}
+                  onClick={() => onProductClick && onProductClick(product.id)}
+                >
                   <TableCell>
                     <div className="flex items-center">
                       <div className={`w-8 h-8 rounded-md ${getIconColor(product.category)} flex items-center justify-center mr-3`}>
-                        <span className="material-icons text-base">{product.icon}</span>
+                        <span className="material-icons text-base">{product.icon || 'inventory_2'}</span>
                       </div>
                       <div>
                         <div className="font-medium">{product.name}</div>
@@ -274,27 +286,41 @@ const ProductList: React.FC = () => {
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                           : product.status === 'inactive'
                           ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                          : product.status === 'out-of-stock'
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                           : 'bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300'
                       }`}
                     >
-                      {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
+                      {product.status ? product.status.charAt(0).toUpperCase() + product.status.slice(1) : 'Unknown'}
                     </span>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center">
-                      <span
-                        className={`${
-                          parseFloat(product.trend) >= 0
-                            ? 'text-green-500'
-                            : 'text-red-500'
-                        } flex items-center`}
-                      >
-                        <span className="material-icons text-sm mr-0.5">
-                          {parseFloat(product.trend) >= 0 ? 'trending_up' : 'trending_down'}
+                    {showPerformanceData && product.popularity ? (
+                      <div className="flex items-center">
+                        <div className="w-16 bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 mr-2">
+                          <div 
+                            className="bg-green-600 h-2.5 rounded-full" 
+                            style={{ width: `${Math.min(100, product.popularity)}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">{product.popularity}%</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center">
+                        <span
+                          className={`${
+                            parseFloat(product.trend) >= 0
+                              ? 'text-green-500'
+                              : 'text-red-500'
+                          } flex items-center`}
+                        >
+                          <span className="material-icons text-sm mr-0.5">
+                            {parseFloat(product.trend) >= 0 ? 'trending_up' : 'trending_down'}
+                          </span>
+                          {Math.abs(parseFloat(product.trend))}%
                         </span>
-                        {Math.abs(parseFloat(product.trend))}%
-                      </span>
-                    </div>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
