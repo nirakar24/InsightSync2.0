@@ -1,0 +1,385 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { z } from "zod";
+import {
+  insertCustomerSchema,
+  insertProductSchema,
+  insertDealSchema,
+  insertTicketSchema
+} from "@shared/schema";
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // API routes prefix
+  const apiPrefix = "/api";
+
+  // Dashboard routes
+  app.get(`${apiPrefix}/dashboard/revenue-metrics`, async (req, res) => {
+    try {
+      const metrics = await storage.getRevenueMetrics();
+      res.json(metrics);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch revenue metrics" });
+    }
+  });
+
+  app.get(`${apiPrefix}/dashboard/category-sales`, async (req, res) => {
+    try {
+      const categorySales = await storage.getCategorySales();
+      res.json(categorySales);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch category sales" });
+    }
+  });
+
+  app.get(`${apiPrefix}/dashboard/top-products`, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 4;
+      const products = await storage.getTopProducts(limit);
+      res.json(products);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch top products" });
+    }
+  });
+
+  app.get(`${apiPrefix}/dashboard/recent-customers`, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 4;
+      const customers = await storage.getRecentCustomers(limit);
+      res.json(customers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch recent customers" });
+    }
+  });
+
+  // Customer routes
+  app.get(`${apiPrefix}/customers`, async (req, res) => {
+    try {
+      const customers = await storage.getCustomers();
+      res.json(customers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch customers" });
+    }
+  });
+
+  app.get(`${apiPrefix}/customers/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid customer ID" });
+      }
+
+      const customer = await storage.getCustomer(id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      res.json(customer);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch customer" });
+    }
+  });
+
+  app.post(`${apiPrefix}/customers`, async (req, res) => {
+    try {
+      const customerData = insertCustomerSchema.parse(req.body);
+      const newCustomer = await storage.createCustomer(customerData);
+      res.status(201).json(newCustomer);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid customer data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create customer" });
+    }
+  });
+
+  app.put(`${apiPrefix}/customers/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid customer ID" });
+      }
+
+      const customerData = insertCustomerSchema.partial().parse(req.body);
+      const updatedCustomer = await storage.updateCustomer(id, customerData);
+      
+      if (!updatedCustomer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      res.json(updatedCustomer);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid customer data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update customer" });
+    }
+  });
+
+  app.delete(`${apiPrefix}/customers/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid customer ID" });
+      }
+
+      const deleted = await storage.deleteCustomer(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete customer" });
+    }
+  });
+
+  // Product routes
+  app.get(`${apiPrefix}/products`, async (req, res) => {
+    try {
+      const products = await storage.getProducts();
+      res.json(products);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch products" });
+    }
+  });
+
+  app.get(`${apiPrefix}/products/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid product ID" });
+      }
+
+      const product = await storage.getProduct(id);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      res.json(product);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch product" });
+    }
+  });
+
+  app.post(`${apiPrefix}/products`, async (req, res) => {
+    try {
+      const productData = insertProductSchema.parse(req.body);
+      const newProduct = await storage.createProduct(productData);
+      res.status(201).json(newProduct);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid product data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create product" });
+    }
+  });
+
+  app.put(`${apiPrefix}/products/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid product ID" });
+      }
+
+      const productData = insertProductSchema.partial().parse(req.body);
+      const updatedProduct = await storage.updateProduct(id, productData);
+      
+      if (!updatedProduct) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      res.json(updatedProduct);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid product data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update product" });
+    }
+  });
+
+  app.delete(`${apiPrefix}/products/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid product ID" });
+      }
+
+      const deleted = await storage.deleteProduct(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete product" });
+    }
+  });
+
+  // Deal routes
+  app.get(`${apiPrefix}/deals`, async (req, res) => {
+    try {
+      const deals = await storage.getDeals();
+      res.json(deals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch deals" });
+    }
+  });
+
+  app.get(`${apiPrefix}/deals/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid deal ID" });
+      }
+
+      const deal = await storage.getDeal(id);
+      if (!deal) {
+        return res.status(404).json({ message: "Deal not found" });
+      }
+
+      res.json(deal);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch deal" });
+    }
+  });
+
+  app.post(`${apiPrefix}/deals`, async (req, res) => {
+    try {
+      const dealData = insertDealSchema.parse(req.body);
+      const newDeal = await storage.createDeal(dealData);
+      res.status(201).json(newDeal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid deal data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create deal" });
+    }
+  });
+
+  app.put(`${apiPrefix}/deals/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid deal ID" });
+      }
+
+      const dealData = insertDealSchema.partial().parse(req.body);
+      const updatedDeal = await storage.updateDeal(id, dealData);
+      
+      if (!updatedDeal) {
+        return res.status(404).json({ message: "Deal not found" });
+      }
+
+      res.json(updatedDeal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid deal data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update deal" });
+    }
+  });
+
+  app.delete(`${apiPrefix}/deals/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid deal ID" });
+      }
+
+      const deleted = await storage.deleteDeal(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Deal not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete deal" });
+    }
+  });
+
+  // Ticket routes
+  app.get(`${apiPrefix}/tickets`, async (req, res) => {
+    try {
+      const tickets = await storage.getTickets();
+      res.json(tickets);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tickets" });
+    }
+  });
+
+  app.get(`${apiPrefix}/tickets/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid ticket ID" });
+      }
+
+      const ticket = await storage.getTicket(id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch ticket" });
+    }
+  });
+
+  app.post(`${apiPrefix}/tickets`, async (req, res) => {
+    try {
+      const ticketData = insertTicketSchema.parse(req.body);
+      const newTicket = await storage.createTicket(ticketData);
+      res.status(201).json(newTicket);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid ticket data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create ticket" });
+    }
+  });
+
+  app.put(`${apiPrefix}/tickets/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid ticket ID" });
+      }
+
+      const ticketData = insertTicketSchema.partial().parse(req.body);
+      const updatedTicket = await storage.updateTicket(id, ticketData);
+      
+      if (!updatedTicket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(updatedTicket);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid ticket data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update ticket" });
+    }
+  });
+
+  app.delete(`${apiPrefix}/tickets/:id`, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid ticket ID" });
+      }
+
+      const deleted = await storage.deleteTicket(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete ticket" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
