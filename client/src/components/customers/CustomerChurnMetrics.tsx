@@ -124,7 +124,7 @@ const CustomerChurnMetrics: React.FC = () => {
   // Convert string percentages to numbers for charting
   const monthlyChurnData = churnData.monthlyChurn.map(item => ({
     ...item,
-    churnRateValue: parseFloat(item.churnRate)
+    churnRateValue: parseFloat(item.churnRate.replace('%', ''))
   }));
 
   const CHURN_REASON_COLORS = [
