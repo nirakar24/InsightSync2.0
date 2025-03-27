@@ -19,7 +19,11 @@ const Dashboard: React.FC = () => {
   // Fetch sales performance data
   const { data: salesData } = useQuery({
     queryKey: ['/api/analytics/dashboard/sales-performance'],
-    onError: () => {
+    retry: 1,
+    gcTime: 300000,
+    staleTime: 60000,
+    onError: (error) => {
+      console.error('Error fetching sales data:', error);
       toast({
         title: "Error",
         description: "Failed to load sales performance data",
@@ -31,10 +35,30 @@ const Dashboard: React.FC = () => {
   // Fetch team analytics data
   const { data: teamData } = useQuery({
     queryKey: ['/api/analytics/dashboard/team-analytics'],
-    onError: () => {
+    retry: 1,
+    gcTime: 300000,
+    staleTime: 60000,
+    onError: (error) => {
+      console.error('Error fetching team data:', error);
       toast({
         title: "Error",
         description: "Failed to load team analytics data",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Fetch churn metrics data which includes total customers
+  const { data: churnData } = useQuery({
+    queryKey: ['/api/analytics/dashboard/churn-metrics'],
+    retry: 1,
+    gcTime: 300000,
+    staleTime: 60000,
+    onError: (error) => {
+      console.error('Error fetching churn data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load customer churn data",
         variant: "destructive"
       });
     }
@@ -86,7 +110,7 @@ const Dashboard: React.FC = () => {
           
           <KpiCard 
             title="Total Customers" 
-            value="2,845" 
+            value={churnData?.totalCustomers ? churnData.totalCustomers.toString() : "120"} 
             change={5.2} 
             icon="people" 
             color="indigo" 

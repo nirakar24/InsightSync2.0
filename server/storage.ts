@@ -512,9 +512,9 @@ export class MemStorage implements IStorage {
       .map(item => item.customer);
     
     // With our expanded customer base of ~120 customers, 
-    // we'll maintain the same proportion of at-risk customers (25%)
-    // This will result in ~30 customers being flagged as at-risk
-    const atRiskCount = Math.max(1, Math.ceil(sortedCustomers.length * 0.25));
+    // we'll use a more realistic proportion of at-risk customers (15%)
+    // This will result in ~18 customers being flagged as at-risk
+    const atRiskCount = Math.max(1, Math.ceil(sortedCustomers.length * 0.15));
     return sortedCustomers.slice(0, atRiskCount);
   }
 
@@ -733,11 +733,11 @@ export class MemStorage implements IStorage {
     const totalCustomers = customers.length;
     const atRiskCustomers = await this.getCustomersWithChurnRisk();
     
-    // Set a consistent churn rate that matches the at-risk customer proportion
-    // For consistency with the KPI cards and other metrics, we'll use a fixed rate of 12.5%
-    // This is half of our 25% at-risk rate, which is a good industry standard
-    const atRiskPercentage = (atRiskCustomers.length / totalCustomers) * 100;
-    const churnRate = "12.5"; // Consistent fixed rate for display
+    // Set a consistent churn rate that matches our business reality
+    // Industry standards suggest that churn rate should be 5-7% for a healthy business
+    // We'll use 6.5% as our fixed rate, with at-risk customers being about 15% of total
+    const atRiskPercentage = 15.0; // Fixed at 15% (more realistic than 25%)
+    const churnRate = "6.5"; // Consistent fixed rate for display
     
     // Get all deals, tickets and activities to analyze trends
     const deals = Array.from(this.deals.values());
@@ -810,7 +810,8 @@ export class MemStorage implements IStorage {
     }
     
     // Generate realistic monthly churn data with a consistent trend
-    const baseChurnRates = [11.2, 11.8, 12.3, 12.5, 13.1, 13.7]; // Realistic trend (most recent first)
+    // Adjust churn rates to be in line with our target rate of 6.5%
+    const baseChurnRates = [5.2, 5.8, 6.1, 6.5, 6.8, 7.1]; // Realistic trend (most recent first)
     const monthNames = [];
     const now = new Date();
     
@@ -840,7 +841,7 @@ export class MemStorage implements IStorage {
       currentChurnRate: churnRate + '%',
       atRiskCount: atRiskCustomers.length,
       totalCustomers,
-      atRiskPercentage: "25.0%", // Consistent with our 25% at-risk strategy
+      atRiskPercentage: "15.0%", // More realistic at-risk percentage
       monthlyChurn,
       topChurnReasons
     };
