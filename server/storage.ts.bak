@@ -145,21 +145,7 @@ export class MemStorage implements IStorage {
 
   async createCustomer(customerData: InsertCustomer): Promise<Customer> {
     const id = this.customerCurrentId++;
-    const customer: Customer = { 
-      ...customerData,
-      id,
-      phone: customerData.phone || null,
-      status: customerData.status || null,
-      totalSpent: customerData.totalSpent || null,
-      lastOrderDate: customerData.lastOrderDate || null,
-      avatar: customerData.avatar || null,
-      address: customerData.address || null,
-      city: customerData.city || null,
-      state: customerData.state || null,
-      zipCode: customerData.zipCode || null,
-      country: customerData.country || null,
-      notes: customerData.notes || null
-    };
+    const customer: Customer = { ...customerData, id };
     this.customers.set(id, customer);
     return customer;
   }
@@ -188,21 +174,7 @@ export class MemStorage implements IStorage {
 
   async createProduct(productData: InsertProduct): Promise<Product> {
     const id = this.productCurrentId++;
-    const product: Product = { 
-      ...productData, 
-      id,
-      status: productData.status || null,
-      description: productData.description || null,
-      currency: productData.currency || null,
-      icon: productData.icon || null,
-      trend: productData.trend || null,
-      stockAvailable: productData.stockAvailable || null,
-      reorderLevel: productData.reorderLevel || null,
-      cost: productData.cost || null,
-      supplierInfo: productData.supplierInfo || null,
-      sku: productData.sku || null,
-      specifications: productData.specifications || null
-    };
+    const product: Product = { ...productData, id };
     this.products.set(id, product);
     return product;
   }
@@ -234,16 +206,9 @@ export class MemStorage implements IStorage {
     const now = new Date();
     const deal: Deal = { 
       ...dealData, 
-      id,
-      notes: dealData.notes || null, 
-      createdAt: now,
-      updatedAt: now,
-      closedAt: dealData.closedAt || null,
-      assignedTo: dealData.assignedTo || null,
-      expectedCloseDate: dealData.expectedCloseDate || null,
-      contactName: dealData.contactName || null,
-      contactEmail: dealData.contactEmail || null,
-      dealType: dealData.dealType || null
+      id, 
+      createdAt: now, 
+      updatedAt: now 
     };
     this.deals.set(id, deal);
     return deal;
@@ -280,16 +245,9 @@ export class MemStorage implements IStorage {
     const now = new Date();
     const ticket: Ticket = { 
       ...ticketData, 
-      id,
-      notes: ticketData.notes || null, 
-      createdAt: now,
-      updatedAt: now,
-      category: ticketData.category || null,
-      assignedTo: ticketData.assignedTo || null,
-      dueDate: ticketData.dueDate || null,
-      resolution: ticketData.resolution || null,
-      attachments: ticketData.attachments || null,
-      satisfaction: ticketData.satisfaction || null
+      id, 
+      createdAt: now, 
+      updatedAt: now 
     };
     this.tickets.set(id, ticket);
     return ticket;
@@ -335,16 +293,8 @@ export class MemStorage implements IStorage {
     const task: Task = {
       ...taskData,
       id,
-      status: taskData.status || null,
-      description: taskData.description || null,
-      priority: taskData.priority || null,
-      dueDate: taskData.dueDate || null,
-      assignedTo: taskData.assignedTo || null,
-      relatedTo: taskData.relatedTo || null,
       createdAt: now,
-      updatedAt: now,
-      completion: taskData.completion || 0,
-      reminderDate: taskData.reminderDate || null
+      updatedAt: now
     };
     this.tasks.set(id, task);
     return task;
@@ -388,14 +338,7 @@ export class MemStorage implements IStorage {
     const id = this.teamMemberCurrentId++;
     const member: TeamMember = {
       ...memberData,
-      id,
-      status: memberData.status || null,
-      avatar: memberData.avatar || null,
-      salesTarget: memberData.salesTarget || null,
-      dealsWon: memberData.dealsWon || 0,
-      ticketsResolved: memberData.ticketsResolved || 0,
-      performanceScore: memberData.performanceScore || null,
-      joinDate: memberData.joinDate || null
+      id
     };
     this.teamMembers.set(id, member);
     return member;
@@ -418,11 +361,11 @@ export class MemStorage implements IStorage {
   }
 
   async getTeamPerformanceMetrics(): Promise<any> {
-    const teamMembers = await this.getTeamMembers();
+    const teamMembers = Array.from(this.teamMembers.values());
     // Calculate overall team metrics
     const totalDealsWon = teamMembers.reduce((sum, member) => sum + (member.dealsWon || 0), 0);
     const totalTicketsResolved = teamMembers.reduce((sum, member) => sum + (member.ticketsResolved || 0), 0);
-    const averagePerformance = teamMembers.reduce((sum, member) => sum + Number(member.performanceScore || 0), 0) / (teamMembers.length || 1);
+    const averagePerformance = teamMembers.reduce((sum, member) => sum + Number(member.performanceScore || 0), 0) / teamMembers.length;
 
     return {
       teamSize: teamMembers.length,
@@ -454,9 +397,7 @@ export class MemStorage implements IStorage {
     const log: ActivityLog = {
       ...logData,
       id,
-      createdAt: now,
-      duration: logData.duration || null,
-      outcome: logData.outcome || null
+      createdAt: now
     };
     this.activityLogs.set(id, log);
     return log;
@@ -483,7 +424,7 @@ export class MemStorage implements IStorage {
         // 1. They haven't made an order in last 3 months
         // 2. Their total spent is above a certain threshold (they're valuable)
         const lastOrder = customer.lastOrderDate ? new Date(customer.lastOrderDate) : null;
-        const isInactive = !lastOrder || (lastOrder && lastOrder < threeMonthsAgo);
+        const isInactive = !lastOrder || lastOrder < threeMonthsAgo;
         const isValuable = Number(customer.totalSpent || 0) > 25000;
         
         return isInactive && isValuable;
@@ -505,8 +446,8 @@ export class MemStorage implements IStorage {
     const dealValue = deals.reduce((sum, deal) => sum + Number(deal.value || 0), 0);
     const avgResponseTime = tickets.length > 0 
       ? tickets.reduce((sum, ticket) => {
-          const created = ticket.createdAt ? new Date(ticket.createdAt) : new Date();
-          const updated = ticket.updatedAt ? new Date(ticket.updatedAt) : new Date();
+          const created = new Date(ticket.createdAt);
+          const updated = new Date(ticket.updatedAt);
           return sum + (updated.getTime() - created.getTime()) / (1000 * 60 * 60); // hours
         }, 0) / tickets.length
       : 0;
@@ -523,14 +464,14 @@ export class MemStorage implements IStorage {
         wonDeals,
         totalTickets: tickets.length,
         lastActivity: activities.length > 0 
-          ? Math.max(...activities.map(a => new Date(a.createdAt || new Date()).getTime()))
+          ? Math.max(...activities.map(a => new Date(a.createdAt).getTime()))
           : null,
         interactions: activities.length
       },
       support: {
         openTickets: tickets.filter(t => t.status === 'open').length,
         avgResponseTime: avgResponseTime.toFixed(2),
-        satisfaction: tickets.reduce((sum, t) => sum + (t.satisfaction || 0), 0) / (tickets.length || 1)
+        satisfaction: tickets.reduce((sum, t) => sum + (t.satisfaction || 0), 0) / tickets.length
       },
       churnRisk: {
         score: calculateChurnScore(customer, deals, tickets, activities),
@@ -621,7 +562,7 @@ export class MemStorage implements IStorage {
     const customers = Array.from(this.customers.values());
     const totalCustomers = customers.length;
     const atRiskCustomers = await this.getCustomersWithChurnRisk();
-    const churnRate = totalCustomers > 0 ? (atRiskCustomers.length / totalCustomers * 100).toFixed(2) : "0.00";
+    const churnRate = (atRiskCustomers.length / totalCustomers * 100).toFixed(2);
 
     // Simulated monthly churn data
     const monthlyChurn = Array.from({ length: 6 }, (_, i) => ({
@@ -635,7 +576,7 @@ export class MemStorage implements IStorage {
       currentChurnRate: churnRate,
       atRiskCount: atRiskCustomers.length,
       totalCustomers,
-      atRiskPercentage: totalCustomers > 0 ? (atRiskCustomers.length / totalCustomers * 100).toFixed(2) : "0.00",
+      atRiskPercentage: (atRiskCustomers.length / totalCustomers * 100).toFixed(2),
       monthlyChurn,
       topChurnReasons: [
         { reason: 'Lack of engagement', percentage: 35 },
@@ -656,8 +597,7 @@ export class MemStorage implements IStorage {
       { department: 'Product', performance: 84, headcount: 7 }
     ];
 
-    const teamMembers = await this.getTeamMembers();
-    const topPerformers = [...teamMembers]
+    const topPerformers = Array.from(this.teamMembers.values())
       .sort((a, b) => Number(b.performanceScore || 0) - Number(a.performanceScore || 0))
       .slice(0, 5)
       .map(member => ({
@@ -668,22 +608,17 @@ export class MemStorage implements IStorage {
         dealsWon: member.dealsWon
       }));
 
-    const stageCount = async (stage: string) => {
-      const deals = await this.getDealsByStage(stage);
-      return deals.length;
-    };
-
     return {
-      teamSize: teamMembers.length,
+      teamSize: Array.from(this.teamMembers.values()).length,
       averagePerformance: 84.5,
       performanceByDepartment,
       topPerformers,
       dealsByStage: [
-        { stage: 'lead', count: await stageCount('lead') },
-        { stage: 'qualified', count: await stageCount('qualified') },
-        { stage: 'proposal', count: await stageCount('proposal') },
-        { stage: 'negotiation', count: await stageCount('negotiation') },
-        { stage: 'closed', count: await stageCount('closed') }
+        { stage: 'lead', count: await this.getDealsByStage('lead').then(deals => deals.length) },
+        { stage: 'qualified', count: await this.getDealsByStage('qualified').then(deals => deals.length) },
+        { stage: 'proposal', count: await this.getDealsByStage('proposal').then(deals => deals.length) },
+        { stage: 'negotiation', count: await this.getDealsByStage('negotiation').then(deals => deals.length) },
+        { stage: 'closed', count: await this.getDealsByStage('closed').then(deals => deals.length) }
       ]
     };
   }
@@ -693,7 +628,7 @@ export class MemStorage implements IStorage {
     const totalDealsValue = deals.reduce((sum, deal) => sum + Number(deal.value || 0), 0);
     const closedDeals = deals.filter(deal => deal.stage === 'closed');
     const closedDealsValue = closedDeals.reduce((sum, deal) => sum + Number(deal.value || 0), 0);
-    const winRate = deals.length > 0 ? closedDeals.length / deals.length * 100 : 0;
+    const winRate = closedDeals.length / deals.length * 100;
     
     // Sales trends by month (simulated data)
     const monthlyTrends = Array.from({ length: 6 }, (_, i) => {
@@ -730,18 +665,81 @@ export class MemStorage implements IStorage {
       }
     };
   }
+}
 
-  // Initialize sample data for the CRM system
-  private initSampleData() {
-    // Sample customers
-    this.createCustomer({
-      name: "Michael Johnson",
-      email: "michael@techsolutions.com",
-      companyName: "Tech Solutions Inc.",
-      phone: "+91-9876543210",
+// Helper functions for churn analysis
+function calculateChurnScore(customer: Customer, deals: Deal[], tickets: Ticket[], activities: ActivityLog[]): number {
+  // Higher score = higher risk of churn (0-100)
+  let score = 0;
+  
+  // Inactivity factor
+  if (customer.lastOrderDate) {
+    const daysSinceLastOrder = (Date.now() - new Date(customer.lastOrderDate).getTime()) / (1000 * 60 * 60 * 24);
+    score += Math.min(daysSinceLastOrder / 2, 30); // Up to 30 points for inactivity
+  } else {
+    score += 30;
+  }
+  
+  // Support ticket factor
+  const unresolved = tickets.filter(t => t.status === 'open').length;
+  score += unresolved * 10; // 10 points per unresolved ticket
+  
+  // Deal engagement factor
+  const activeDeals = deals.filter(d => d.stage !== 'closed' && d.stage !== 'lost').length;
+  score -= activeDeals * 5; // -5 points per active deal (reduces churn risk)
+  
+  // Recent interaction factor
+  if (activities.length > 0) {
+    const latestActivity = new Date(
+      Math.max(...activities.map(a => new Date(a.createdAt).getTime()))
+    );
+    const daysSinceActivity = (Date.now() - latestActivity.getTime()) / (1000 * 60 * 60 * 24);
+    score += Math.min(daysSinceActivity / 3, 20); // Up to 20 points for no recent activity
+  } else {
+    score += 20;
+  }
+  
+  // Ensure score is within 0-100 range
+  return Math.max(0, Math.min(100, score));
+}
+
+function getChurnFactors(customer: Customer, deals: Deal[], tickets: Ticket[]): string[] {
+  const factors = [];
+  
+  // Analyze inactivity
+  if (customer.lastOrderDate) {
+    const daysSinceLastOrder = (Date.now() - new Date(customer.lastOrderDate).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceLastOrder > 90) {
+      factors.push('No orders in past 90 days');
+    }
+  } else {
+    factors.push('No order history');
+  }
+  
+  // Analyze support experience
+  const unresolved = tickets.filter(t => t.status === 'open').length;
+  if (unresolved > 0) {
+    factors.push(`${unresolved} unresolved support tickets`);
+  }
+  
+  // Analyze deal engagement
+  const lostDeals = deals.filter(d => d.stage === 'lost').length;
+  if (lostDeals > 0) {
+    factors.push(`${lostDeals} lost opportunities`);
+  }
+  
+  // Add default factor if none found
+  if (factors.length === 0) {
+    factors.push('Regular engagement patterns');
+  }
+  
+  return factors;
+}
+
+export const storage = new MemStorage();
       status: "active",
       totalSpent: "42500",
-      lastOrderDate: "2023-05-15",
+      lastOrderDate: new Date("2023-05-15"),
       avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=250"
     });
     
@@ -752,7 +750,7 @@ export class MemStorage implements IStorage {
       phone: "+91-9876543211",
       status: "active",
       totalSpent: "28700",
-      lastOrderDate: "2023-05-10",
+      lastOrderDate: new Date("2023-05-10"),
       avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=250"
     });
     
@@ -763,7 +761,7 @@ export class MemStorage implements IStorage {
       phone: "+91-9876543212",
       status: "active",
       totalSpent: "56200",
-      lastOrderDate: "2023-05-05",
+      lastOrderDate: new Date("2023-05-05"),
       avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=250"
     });
     
@@ -774,7 +772,7 @@ export class MemStorage implements IStorage {
       phone: "+91-9876543213",
       status: "active",
       totalSpent: "31450",
-      lastOrderDate: "2023-04-28",
+      lastOrderDate: new Date("2023-04-28"),
       avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=250"
     });
 
@@ -897,119 +895,13 @@ export class MemStorage implements IStorage {
       priority: "medium"
     });
 
-    // Sample team members
-    this.createTeamMember({
-      name: "Rajesh Kumar",
-      email: "rajesh@insightsync.com",
-      role: "Sales Manager",
-      department: "Sales",
-      avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=250",
-      status: "active",
-      salesTarget: "2500000",
-      dealsWon: 15,
-      ticketsResolved: 0,
-      performanceScore: "92.5",
-      joinDate: "2022-06-12"
-    });
-    
-    this.createTeamMember({
-      name: "Priya Sharma",
-      email: "priya@insightsync.com",
-      role: "Support Specialist",
-      department: "Support",
-      avatar: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=250",
-      status: "active",
-      salesTarget: "0",
-      dealsWon: 0,
-      ticketsResolved: 127,
-      performanceScore: "88.7",
-      joinDate: "2022-08-03"
-    });
-    
-    this.createTeamMember({
-      name: "Arun Verma",
-      email: "arun@insightsync.com",
-      role: "Product Specialist",
-      department: "Product",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=250",
-      status: "active",
-      salesTarget: "1250000",
-      dealsWon: 8,
-      ticketsResolved: 32,
-      performanceScore: "85.2",
-      joinDate: "2022-11-15"
-    });
-
-    // Sample tasks
-    this.createTask({
-      title: "Follow up with Tech Solutions",
-      description: "Call Michael to discuss implementation timeline",
-      status: "pending",
-      priority: "high",
-      dueDate: "2023-06-15",
-      assignedTo: "1", // Rajesh
-      relatedTo: "customer:1" // Michael Johnson
-    });
-    
-    this.createTask({
-      title: "Prepare proposal for Cloud Migration",
-      description: "Create detailed technical proposal and pricing",
-      status: "in-progress",
-      priority: "medium",
-      dueDate: "2023-06-10",
-      assignedTo: "3", // Arun
-      relatedTo: "deal:2" // Cloud Migration Project
-    });
-    
-    this.createTask({
-      title: "Resolve payment gateway integration",
-      description: "Debug API connection issues for Tech Solutions",
-      status: "pending",
-      priority: "high",
-      dueDate: "2023-06-08",
-      assignedTo: "2", // Priya
-      relatedTo: "ticket:1" // Integration issue ticket
-    });
-
-    // Sample activity logs
-    this.createActivityLog({
-      activityType: "call",
-      description: "Initial discovery call to understand requirements",
-      relatedTo: "customer:1", // Michael Johnson
-      createdBy: "1", // Rajesh
-      duration: 45,
-      outcome: "Positive, client interested in full implementation"
-    });
-    
-    this.createActivityLog({
-      activityType: "email",
-      description: "Sent proposal documents for review",
-      relatedTo: "deal:1", // Enterprise CRM Implementation
-      createdBy: "1", // Rajesh
-      outcome: "Awaiting feedback"
-    });
-    
-    this.createActivityLog({
-      activityType: "meeting",
-      description: "Technical discussion about integration options",
-      relatedTo: "ticket:1", // Integration issue ticket
-      createdBy: "2", // Priya
-      duration: 60,
-      outcome: "Identified API authentication issue"
-    });
-
-    // Revenue metrics with enhanced data
+    // Revenue metrics
     this.revenueMetrics.set(1, {
       id: 1,
       month: "Jan",
       year: 2023,
       value: "1800000",
-      change: "10.2",
-      newCustomers: 12,
-      churnedCustomers: 2,
-      mrr: "1450000",
-      expenses: "950000",
-      profit: "500000"
+      change: "10.2"
     });
     
     this.revenueMetrics.set(2, {
@@ -1017,12 +909,7 @@ export class MemStorage implements IStorage {
       month: "Feb",
       year: 2023,
       value: "1950000",
-      change: "8.5",
-      newCustomers: 15,
-      churnedCustomers: 3,
-      mrr: "1560000",
-      expenses: "980000",
-      profit: "580000"
+      change: "8.5"
     });
     
     this.revenueMetrics.set(3, {
@@ -1030,12 +917,7 @@ export class MemStorage implements IStorage {
       month: "Mar",
       year: 2023,
       value: "2100000",
-      change: "7.8",
-      newCustomers: 18,
-      churnedCustomers: 2,
-      mrr: "1620000",
-      expenses: "1020000",
-      profit: "600000"
+      change: "7.8"
     });
     
     this.revenueMetrics.set(4, {
@@ -1043,12 +925,7 @@ export class MemStorage implements IStorage {
       month: "Apr",
       year: 2023,
       value: "2250000",
-      change: "7.2",
-      newCustomers: 14,
-      churnedCustomers: 4,
-      mrr: "1680000",
-      expenses: "1050000",
-      profit: "630000"
+      change: "7.2"
     });
     
     this.revenueMetrics.set(5, {
@@ -1056,12 +933,7 @@ export class MemStorage implements IStorage {
       month: "May",
       year: 2023,
       value: "2400000",
-      change: "6.7",
-      newCustomers: 16,
-      churnedCustomers: 3,
-      mrr: "1750000",
-      expenses: "1080000",
-      profit: "670000"
+      change: "6.7"
     });
     
     this.revenueMetrics.set(6, {
@@ -1069,12 +941,7 @@ export class MemStorage implements IStorage {
       month: "Jun",
       year: 2023,
       value: "2550000",
-      change: "6.3",
-      newCustomers: 20,
-      churnedCustomers: 2,
-      mrr: "1820000",
-      expenses: "1120000",
-      profit: "700000"
+      change: "6.3"
     });
     
     this.revenueMetrics.set(7, {
@@ -1082,12 +949,7 @@ export class MemStorage implements IStorage {
       month: "Jul",
       year: 2023,
       value: "2325000",
-      change: "-8.8",
-      newCustomers: 10,
-      churnedCustomers: 6,
-      mrr: "1710000",
-      expenses: "1100000",
-      profit: "610000"
+      change: "-8.8"
     });
     
     this.revenueMetrics.set(8, {
@@ -1095,134 +957,42 @@ export class MemStorage implements IStorage {
       month: "Aug",
       year: 2023,
       value: "2450000",
-      change: "5.4",
-      newCustomers: 13,
-      churnedCustomers: 3,
-      mrr: "1780000",
-      expenses: "1115000",
-      profit: "665000"
+      change: "5.4"
     });
     
     this.revenueMetricCurrentId = 9;
 
-    // Category sales with enhanced analytics
+    // Category sales
     this.categorySales.set(1, {
       id: 1,
       category: "Software",
       value: "1800000",
-      percentage: "40",
-      growth: "12.5",
-      itemCount: 24,
-      avgOrderValue: "75000"
+      percentage: "40"
     });
     
     this.categorySales.set(2, {
       id: 2,
       category: "Services",
       value: "1125000",
-      percentage: "25",
-      growth: "8.2",
-      itemCount: 18,
-      avgOrderValue: "62500"
+      percentage: "25"
     });
     
     this.categorySales.set(3, {
       id: 3,
       category: "Hardware",
       value: "900000",
-      percentage: "20",
-      growth: "-2.8",
-      itemCount: 32,
-      avgOrderValue: "28125"
+      percentage: "20"
     });
     
     this.categorySales.set(4, {
       id: 4,
       category: "Support",
       value: "675000",
-      percentage: "15",
-      growth: "5.4",
-      itemCount: 45,
-      avgOrderValue: "15000"
+      percentage: "15"
     });
     
     this.categorySaleCurrentId = 5;
   }
-}
-
-// Helper functions for churn analysis
-function calculateChurnScore(customer: Customer, deals: Deal[], tickets: Ticket[], activities: ActivityLog[]): number {
-  // Higher score = higher risk of churn (0-100)
-  let score = 0;
-  
-  // Inactivity factor
-  if (customer.lastOrderDate) {
-    const daysSinceLastOrder = (Date.now() - new Date(customer.lastOrderDate).getTime()) / (1000 * 60 * 60 * 24);
-    score += Math.min(daysSinceLastOrder / 2, 30); // Up to 30 points for inactivity
-  } else {
-    score += 30;
-  }
-  
-  // Support ticket factor
-  const unresolved = tickets.filter(t => t.status === 'open').length;
-  score += unresolved * 10; // 10 points per unresolved ticket
-  
-  // Deal engagement factor
-  const activeDeals = deals.filter(d => d.stage !== 'closed' && d.stage !== 'lost').length;
-  score -= activeDeals * 5; // -5 points per active deal (reduces churn risk)
-  
-  // Recent interaction factor
-  if (activities.length > 0) {
-    const latestActivityTimes = activities
-      .map(a => a.createdAt ? new Date(a.createdAt).getTime() : 0)
-      .filter(time => time > 0);
-      
-    if (latestActivityTimes.length > 0) {
-      const latestActivity = new Date(Math.max(...latestActivityTimes));
-      const daysSinceActivity = (Date.now() - latestActivity.getTime()) / (1000 * 60 * 60 * 24);
-      score += Math.min(daysSinceActivity / 3, 20); // Up to 20 points for no recent activity
-    } else {
-      score += 20;
-    }
-  } else {
-    score += 20;
-  }
-  
-  // Ensure score is within 0-100 range
-  return Math.max(0, Math.min(100, score));
-}
-
-function getChurnFactors(customer: Customer, deals: Deal[], tickets: Ticket[]): string[] {
-  const factors = [];
-  
-  // Analyze inactivity
-  if (customer.lastOrderDate) {
-    const daysSinceLastOrder = (Date.now() - new Date(customer.lastOrderDate).getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSinceLastOrder > 90) {
-      factors.push('No orders in past 90 days');
-    }
-  } else {
-    factors.push('No order history');
-  }
-  
-  // Analyze support experience
-  const unresolved = tickets.filter(t => t.status === 'open').length;
-  if (unresolved > 0) {
-    factors.push(`${unresolved} unresolved support tickets`);
-  }
-  
-  // Analyze deal engagement
-  const lostDeals = deals.filter(d => d.stage === 'lost').length;
-  if (lostDeals > 0) {
-    factors.push(`${lostDeals} lost opportunities`);
-  }
-  
-  // Add default factor if none found
-  if (factors.length === 0) {
-    factors.push('Regular engagement patterns');
-  }
-  
-  return factors;
 }
 
 export const storage = new MemStorage();
