@@ -44,7 +44,7 @@ const CustomerChurnMetrics: React.FC = () => {
   
   // Get churn metrics
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['/api/analytics/customers/churn'],
+    queryKey: ['/api/analytics/dashboard/churn-metrics'],
     onError: () => {
       toast({
         title: "Error",

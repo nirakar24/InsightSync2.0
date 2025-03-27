@@ -67,7 +67,7 @@ const CustomerLifetimeValue: React.FC<CustomerLifetimeValueProps> = ({ customerI
   
   // Get customer engagement data
   const { data, isLoading: isLoadingEngagement, isError } = useQuery({
-    queryKey: ['/api/analytics/customers/engagement', customerId],
+    queryKey: [`/api/analytics/customers/${customerId}/engagement`],
     enabled: !!customerId,
     onError: () => {
       toast({
@@ -80,7 +80,7 @@ const CustomerLifetimeValue: React.FC<CustomerLifetimeValueProps> = ({ customerI
 
   // Get customer details
   const { data: customerData, isLoading: isLoadingCustomer } = useQuery({
-    queryKey: ['/api/customers', customerId],
+    queryKey: [`/api/customers/${customerId}`],
     enabled: !!customerId,
     onError: () => {
       toast({

@@ -76,7 +76,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticketId, isOpen, onClose }
   
   // Get ticket data
   const { data: ticketData, isLoading: isLoadingTicket } = useQuery({
-    queryKey: ['/api/tickets', ticketId],
+    queryKey: [`/api/tickets/${ticketId}`],
     enabled: isOpen && !!ticketId,
     onError: () => {
       toast({
@@ -89,7 +89,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticketId, isOpen, onClose }
 
   // Get customer data
   const { data: customerData, isLoading: isLoadingCustomer } = useQuery({
-    queryKey: ['/api/customers', ticketData?.customerId],
+    queryKey: [`/api/customers/${ticketData?.customerId}`],
     enabled: isOpen && !!ticketData?.customerId,
     onError: () => {
       toast({
@@ -131,7 +131,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticketId, isOpen, onClose }
         title: "Success",
         description: "Ticket updated successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/tickets', ticketId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/tickets/${ticketId}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
       setIsEditing(false);
     },

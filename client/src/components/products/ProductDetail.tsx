@@ -83,7 +83,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, isOpen, onClos
   
   // Get product data
   const { data: productData, isLoading: isLoadingProduct } = useQuery({
-    queryKey: ['/api/products', productId],
+    queryKey: [`/api/products/${productId}`],
     enabled: isOpen && !!productId,
     onError: () => {
       toast({
@@ -96,7 +96,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, isOpen, onClos
 
   // Get product performance data
   const { data: performanceData, isLoading: isLoadingPerformance } = useQuery({
-    queryKey: ['/api/analytics/products/performance', productId],
+    queryKey: [`/api/analytics/products/${productId}/performance`],
     enabled: isOpen && !!productId,
     onError: () => {
       toast({
