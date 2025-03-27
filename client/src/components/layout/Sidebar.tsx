@@ -23,6 +23,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleSidebar }) => {
   ];
 
   const bottomNavItems = [
+    { path: '/about', label: 'About', icon: 'info' },
     { path: '/settings', label: 'Settings', icon: 'settings' },
     { path: '/help', label: 'Help Center', icon: 'help_outline' },
   ];
@@ -68,7 +69,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleSidebar }) => {
               <Link
                 key={item.path}
                 href={item.path}
-                className="flex items-center p-3 rounded-md text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 group"
+                className={`flex items-center p-3 rounded-md ${
+                  isActive(item.path)
+                    ? 'bg-secondary/10 text-secondary'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                } group`}
               >
                 <span className="material-icons text-xl">{item.icon}</span>
                 {!collapsed && <span className="ml-3 font-medium">{item.label}</span>}
