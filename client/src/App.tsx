@@ -13,6 +13,7 @@ import Sales from "@/pages/sales";
 import Support from "@/pages/support";
 import Settings from "@/pages/settings";
 import Help from "@/pages/help";
+import About from "@/pages/about";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/support" component={Support} />
       <Route path="/settings" component={Settings} />
       <Route path="/help" component={Help} />
+      <Route path="/about" component={About} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
