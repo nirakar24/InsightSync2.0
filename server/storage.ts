@@ -564,27 +564,80 @@ export class MemStorage implements IStorage {
     const product = await this.getProduct(id);
     if (!product) return null;
 
-    // Calculate product performance metrics
-    const totalSales = Math.floor(Math.random() * 100) + 50; // Simulated data
-    const conversionRate = (Math.random() * 0.3 + 0.1).toFixed(2);
-    const monthlyTrend = Array.from({ length: 6 }, (_, i) => ({
-      month: new Date(2023, i, 1).toLocaleString('en-US', { month: 'short' }),
-      sales: Math.floor(Math.random() * 30) + 10,
-      revenue: (Math.floor(Math.random() * 50) + 30) * Number(product.price || 0) * 0.01
+    // Calculate product performance metrics with more meaningful numbers
+    const productPrice = Number(product.price || 0);
+    
+    // Generate monthly sales data
+    const monthlySalesData = Array.from({ length: 6 }, (_, i) => {
+      const month = new Date(2023, i, 1).toLocaleString('en-US', { month: 'short' });
+      // Base sales on product price - higher priced items sell fewer units
+      const baseSales = Math.max(5, Math.floor(2000000 / productPrice));
+      // Add some random variation but keep it reasonable
+      const sales = Math.floor(baseSales * (0.8 + (Math.random() * 0.4)));
+      return { month, sales };
+    });
+    
+    // Generate monthly revenue data
+    const monthlyRevenueData = monthlySalesData.map(item => ({
+      month: item.month,
+      revenue: Math.floor(item.sales * productPrice)
     }));
-
+    
+    // Calculate growth between last two months
+    const currentMonthSales = monthlySalesData[monthlySalesData.length - 1].sales;
+    const previousMonthSales = monthlySalesData[monthlySalesData.length - 2].sales;
+    const salesGrowthPercent = ((currentMonthSales - previousMonthSales) / previousMonthSales * 100).toFixed(1);
+    const salesGrowthNum = parseFloat(salesGrowthPercent);
+    const salesGrowth = (salesGrowthNum > 0 ? '+' : '') + salesGrowthPercent + '%';
+    
+    // Revenue growth
+    const currentMonthRevenue = monthlyRevenueData[monthlyRevenueData.length - 1].revenue;
+    const previousMonthRevenue = monthlyRevenueData[monthlyRevenueData.length - 2].revenue;
+    const revenueGrowthPercent = ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue * 100).toFixed(1);
+    const revenueGrowthNum = parseFloat(revenueGrowthPercent);
+    const revenueGrowth = (revenueGrowthNum > 0 ? '+' : '') + revenueGrowthPercent + '%';
+    
+    // Calculate meaningful total revenue
+    const totalRevenue = monthlyRevenueData.reduce((sum, item) => sum + item.revenue, 0);
+    
+    // Popularity score based on trend and category
+    const baseScore = product.trend ? Math.abs(parseFloat(product.trend)) * 5 : 30;
+    const categoryBonus = product.category === 'Software' ? 15 : 
+                         product.category === 'Support' ? 10 : 
+                         product.category === 'Infrastructure' ? 8 : 5;
+    const popularityScore = Math.min(95, Math.floor(baseScore + categoryBonus + Math.random() * 20));
+    
+    // Calculate inventory data
+    const stockAvailable = product.stockAvailable || 0;
+    const reorderLevel = 10; // Default if not specified
+    const reserved = Math.floor(stockAvailable * 0.3); // 30% of available stock is reserved
+    const backOrdered = stockAvailable < reorderLevel ? Math.floor(reorderLevel * 0.8) : 0;
+    
     return {
       sales: {
-        total: totalSales,
-        lastMonth: monthlyTrend[monthlyTrend.length - 1].sales,
-        trend: product.trend
+        currentMonth: currentMonthSales,
+        previousMonth: previousMonthSales,
+        growth: salesGrowth,
+        monthlyData: monthlySalesData
       },
-      performance: {
-        conversionRate,
-        avgOrderValue: Number(product.price || 0) * 0.8,
-        repurchaseRate: (Math.random() * 0.25 + 0.05).toFixed(2)
+      revenue: {
+        total: totalRevenue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }),
+        growth: revenueGrowth,
+        monthlyData: monthlyRevenueData
       },
-      monthlyTrend,
+      popularity: {
+        score: popularityScore,
+        trend: product.trend && parseFloat(product.trend) >= 0 ? '+' + product.trend + '%' : product.trend + '%',
+        viewCount: Math.floor(popularityScore * 15 + Math.random() * 500),
+        conversionRate: (popularityScore / 200 + 0.05).toFixed(2) + '%'
+      },
+      inventory: {
+        inStock: stockAvailable,
+        reserved: reserved,
+        backOrdered: backOrdered,
+        reorderLevel: reorderLevel,
+        daysToRestock: backOrdered > 0 ? Math.floor(Math.random() * 14) + 3 : 0
+      },
       relatedProducts: Array.from(this.products.values())
         .filter(p => p.id !== id && p.category === product.category)
         .slice(0, 3)
@@ -871,7 +924,8 @@ export class MemStorage implements IStorage {
       currency: "INR",
       status: "active",
       icon: "desktop_windows",
-      trend: "12.4"
+      trend: "12.4",
+      stockAvailable: 45
     });
     
     this.createProduct({
@@ -882,7 +936,8 @@ export class MemStorage implements IStorage {
       currency: "INR",
       status: "active",
       icon: "support_agent",
-      trend: "8.2"
+      trend: "8.2",
+      stockAvailable: 120
     });
     
     this.createProduct({
@@ -893,7 +948,8 @@ export class MemStorage implements IStorage {
       currency: "INR",
       status: "active",
       icon: "storage",
-      trend: "-2.8"
+      trend: "-2.8",
+      stockAvailable: 5
     });
     
     this.createProduct({
@@ -904,7 +960,8 @@ export class MemStorage implements IStorage {
       currency: "INR",
       status: "active",
       icon: "integration_instructions",
-      trend: "15.7"
+      trend: "15.7",
+      stockAvailable: 75
     });
 
     // Sample deals
