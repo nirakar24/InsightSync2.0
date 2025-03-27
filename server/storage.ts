@@ -483,20 +483,51 @@ export class MemStorage implements IStorage {
   // Customer advanced operations
   async getCustomersWithChurnRisk(): Promise<Customer[]> {
     // In a real system, this would use ML models or complex business rules
-    // For this demo, we'll use a simple heuristic
-    const threeMonthsAgo = new Date();
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    // For this demo, we'll use a more nuanced heuristic to get realistic churn rates
+    const twoMonthsAgo = new Date();
+    twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+    
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    
+    // Get all customer activities to analyze engagement
+    const activities = Array.from(this.activityLogs.values());
     
     return Array.from(this.customers.values())
       .filter(customer => {
-        // Consider a customer at risk if:
-        // 1. They haven't made an order in last 3 months
-        // 2. Their total spent is above a certain threshold (they're valuable)
-        const lastOrder = customer.lastOrderDate ? new Date(customer.lastOrderDate) : null;
-        const isInactive = !lastOrder || (lastOrder && lastOrder < threeMonthsAgo);
-        const isValuable = Number(customer.totalSpent || 0) > 25000;
+        // Calculate risk based on multiple factors
+        let riskScore = 0;
         
-        return isInactive && isValuable;
+        // Check last order date (recent orders reduce risk)
+        const lastOrder = customer.lastOrderDate ? new Date(customer.lastOrderDate) : null;
+        if (!lastOrder) {
+          riskScore += 20; // No order history is a risk
+        } else if (lastOrder < twoMonthsAgo) {
+          riskScore += 15; // Orders older than 2 months increase risk
+        } else {
+          riskScore -= 10; // Recent orders reduce risk
+        }
+        
+        // Customer value (high-value customers at greater retention risk)
+        const totalSpent = Number(customer.totalSpent || 0);
+        if (totalSpent > 40000) {
+          riskScore += 10; // High-value customers are priority retention targets
+        }
+        
+        // Activity engagement (lack of engagement increases risk)
+        const customerActivities = activities.filter(a => {
+          const [entityType, entityId] = a.relatedTo.split(':');
+          return entityType === 'customer' && parseInt(entityId) === customer.id;
+        });
+        
+        if (customerActivities.length === 0) {
+          riskScore += 20; // No engagement is high risk
+        } else if (customerActivities.length < 3) {
+          riskScore += 10; // Low engagement is moderate risk
+        }
+        
+        // Only consider customers with risk score above threshold
+        return riskScore > 25;
       });
   }
 
@@ -536,7 +567,7 @@ export class MemStorage implements IStorage {
         wonDeals,
         totalTickets: tickets.length,
         lastActivity: activities.length > 0 
-          ? Math.max(...activities.map(a => new Date(a.createdAt || new Date()).getTime()))
+          ? new Date(Math.max(...activities.map(a => new Date(a.createdAt || new Date()).getTime()))).toISOString()
           : null,
         interactions: activities.length
       },
@@ -1236,73 +1267,168 @@ export class MemStorage implements IStorage {
 // Helper functions for churn analysis
 function calculateChurnScore(customer: Customer, deals: Deal[], tickets: Ticket[], activities: ActivityLog[]): number {
   // Higher score = higher risk of churn (0-100)
+  // More realistic algorithm with weighted factors
   let score = 0;
+  const now = new Date();
   
-  // Inactivity factor
+  // Base score - all customers start with a low risk baseline
+  score = 15;
+  
+  // Order recency factor (most important predictor)
   if (customer.lastOrderDate) {
-    const daysSinceLastOrder = (Date.now() - new Date(customer.lastOrderDate).getTime()) / (1000 * 60 * 60 * 24);
-    score += Math.min(daysSinceLastOrder / 2, 30); // Up to 30 points for inactivity
+    const lastOrderDate = new Date(customer.lastOrderDate);
+    const daysSinceLastOrder = (now.getTime() - lastOrderDate.getTime()) / (1000 * 60 * 60 * 24);
+    
+    if (daysSinceLastOrder < 30) {
+      // Very recent purchase - reduces churn risk significantly
+      score -= 10;
+    } else if (daysSinceLastOrder < 90) {
+      // Recent purchase in last 3 months - slightly reduces risk
+      score -= 5;
+    } else if (daysSinceLastOrder > 180) {
+      // No purchase in last 6 months - increases risk significantly
+      score += Math.min((daysSinceLastOrder - 180) / 10, 25);
+    }
   } else {
-    score += 30;
+    // No purchase history - moderate risk
+    score += 18;
   }
   
-  // Support ticket factor
-  const unresolved = tickets.filter(t => t.status === 'open').length;
-  score += unresolved * 10; // 10 points per unresolved ticket
+  // Revenue significance factor
+  const totalSpent = Number(customer.totalSpent || 0);
+  if (totalSpent > 50000) {
+    // High-value customers often have different churn patterns
+    // They may have longer renewal cycles but higher loyalty
+    score -= 8;
+  } else if (totalSpent < 10000) {
+    // Low-value customers have higher churn risk
+    score += 5;
+  }
   
-  // Deal engagement factor
+  // Support ticket factor - weighted by age and status
+  const openTickets = tickets.filter(t => t.status === 'open' || t.status === 'in progress');
+  if (openTickets.length > 2) {
+    // Multiple open tickets is a strong churn signal
+    score += 15;
+  } else if (openTickets.length > 0) {
+    // One open ticket is a moderate signal
+    score += 8;
+  }
+  
+  // High priority unresolved tickets are critical
+  const highPriorityTickets = tickets.filter(t => t.priority === 'high' && t.status !== 'closed');
+  if (highPriorityTickets.length > 0) {
+    score += highPriorityTickets.length * 7;
+  }
+  
+  // Deal engagement factor - active deals indicate ongoing relationship
   const activeDeals = deals.filter(d => d.stage !== 'closed' && d.stage !== 'lost').length;
-  score -= activeDeals * 5; // -5 points per active deal (reduces churn risk)
+  score -= Math.min(activeDeals * 4, 12); // Up to -12 points for active deals
   
-  // Recent interaction factor
+  // Recent interaction factor - engagement indicates lower churn risk
   if (activities.length > 0) {
+    // More interactions generally indicate better engagement
+    score -= Math.min(activities.length, 8);
+    
+    // Recency of interaction is important
     const latestActivityTimes = activities
       .map(a => a.createdAt ? new Date(a.createdAt).getTime() : 0)
       .filter(time => time > 0);
-      
+    
     if (latestActivityTimes.length > 0) {
       const latestActivity = new Date(Math.max(...latestActivityTimes));
-      const daysSinceActivity = (Date.now() - latestActivity.getTime()) / (1000 * 60 * 60 * 24);
-      score += Math.min(daysSinceActivity / 3, 20); // Up to 20 points for no recent activity
+      const daysSinceActivity = (now.getTime() - latestActivity.getTime()) / (1000 * 60 * 60 * 24);
+      
+      if (daysSinceActivity < 7) {
+        // Very recent activity
+        score -= 10;
+      } else if (daysSinceActivity > 60) {
+        // No recent activity
+        score += Math.min(daysSinceActivity / 15, 12);
+      }
     } else {
-      score += 20;
+      score += 12; // No timestamped activities
     }
   } else {
+    // No recorded interactions is a strong churn signal
     score += 20;
   }
   
+  // Add some randomness to simulate other unknown factors
+  // This makes the data more realistic by avoiding uniform scores
+  score += (Math.random() * 6) - 3;
+  
   // Ensure score is within 0-100 range
-  return Math.max(0, Math.min(100, score));
+  return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 function getChurnFactors(customer: Customer, deals: Deal[], tickets: Ticket[]): string[] {
   const factors = [];
+  const now = new Date();
   
-  // Analyze inactivity
+  // Customer activity analysis
   if (customer.lastOrderDate) {
-    const daysSinceLastOrder = (Date.now() - new Date(customer.lastOrderDate).getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSinceLastOrder > 90) {
-      factors.push('No orders in past 90 days');
+    const lastOrderDate = new Date(customer.lastOrderDate);
+    const daysSinceLastOrder = (now.getTime() - lastOrderDate.getTime()) / (1000 * 60 * 60 * 24);
+    
+    if (daysSinceLastOrder > 180) {
+      factors.push('Inactive for 6+ months');
+    } else if (daysSinceLastOrder > 90) {
+      factors.push('No orders in past 3 months');
     }
   } else {
-    factors.push('No order history');
+    factors.push('No purchase history');
   }
   
-  // Analyze support experience
-  const unresolved = tickets.filter(t => t.status === 'open').length;
-  if (unresolved > 0) {
-    factors.push(`${unresolved} unresolved support tickets`);
+  // Support experience analysis
+  const openTickets = tickets.filter(t => t.status === 'open' || t.status === 'in progress');
+  const highPriorityTickets = tickets.filter(t => t.priority === 'high' && t.status !== 'closed');
+  
+  if (highPriorityTickets.length > 0) {
+    factors.push('Unresolved critical issues');
+  } else if (openTickets.length > 1) {
+    factors.push(`Multiple unresolved support requests`);
   }
   
-  // Analyze deal engagement
+  // Deal engagement analysis
   const lostDeals = deals.filter(d => d.stage === 'lost').length;
-  if (lostDeals > 0) {
-    factors.push(`${lostDeals} lost opportunities`);
+  const activeDeals = deals.filter(d => d.stage !== 'closed' && d.stage !== 'lost').length;
+  
+  if (lostDeals > 1) {
+    factors.push(`Recent deal losses (${lostDeals})`);
+  }
+  
+  if (activeDeals === 0 && customer.totalSpent && Number(customer.totalSpent) > 20000) {
+    factors.push('No active opportunities despite high spend');
+  }
+  
+  // Account value analysis
+  const totalSpent = Number(customer.totalSpent || 0);
+  if (totalSpent < 10000 && customer.status === 'inactive') {
+    factors.push('Low value & inactive account');
+  }
+  
+  // Customer relationship analysis
+  if (tickets.length > 3 && openTickets.length > 0) {
+    factors.push('Multiple support interactions');
+  }
+  
+  // Competitive threat analysis
+  // We'd need more data for this in a real system
+  if (lostDeals > 0 && daysSinceLastOrder > 60) {
+    factors.push('Possible competitor engagement');
   }
   
   // Add default factor if none found
   if (factors.length === 0) {
-    factors.push('Regular engagement patterns');
+    // Add one of several possible default factors randomly to make it more realistic
+    const defaultFactors = [
+      'Regular engagement patterns',
+      'Healthy customer relationship',
+      'Normal usage behavior',
+      'Stable account health'
+    ];
+    factors.push(defaultFactors[Math.floor(Math.random() * defaultFactors.length)]);
   }
   
   return factors;
