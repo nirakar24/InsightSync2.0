@@ -474,6 +474,7 @@ export class MemStorage implements IStorage {
     } else {
       // Match only the type part of the relatedTo field
       return Array.from(this.activityLogs.values()).filter(log => {
+        if (!log.relatedTo) return false;
         const [entityType] = log.relatedTo.split(':');
         return entityType === relatedTo;
       });
@@ -482,18 +483,39 @@ export class MemStorage implements IStorage {
 
   // Customer advanced operations
   async getCustomersWithChurnRisk(): Promise<Customer[]> {
-    // For demo purposes, we'll mark just 1 customer (25%) as at risk
-    // This will match with our 12.5% churn rate (which is half of the at-risk rate)
-    // In a real system, this would use ML models or complex business rules
-    
+    // Get all data needed for churn calculation
     const customers = Array.from(this.customers.values());
+    const deals = Array.from(this.deals.values());
+    const tickets = Array.from(this.tickets.values());
+    const activities = Array.from(this.activityLogs.values());
     
-    // Mark only 1 out of 4 customers as at risk (25%)
-    // This makes sense with our 12.5% churn rate
-    return customers.filter((customer, index) => {
-      // Just mark the first customer as being at risk for demo purposes
-      return index === 0;
-    });
+    // Calculate churn score for each customer
+    const customerScores: { customer: Customer; score: number }[] = [];
+    
+    for (const customer of customers) {
+      const customerDeals = deals.filter(d => d.customerId === customer.id);
+      const customerTickets = tickets.filter(t => t.customerId === customer.id);
+      const customerActivities = activities.filter(a => {
+        // Parse the relatedTo field which has format 'entityType:entityId'
+        if (!a.relatedTo) return false;
+        const [entityType, entityId] = a.relatedTo.split(':');
+        return entityType === 'customer' && parseInt(entityId) === customer.id;
+      });
+      
+      const score = calculateChurnScore(customer, customerDeals, customerTickets, customerActivities);
+      customerScores.push({ customer, score });
+    }
+    
+    // Sort customers by churn risk (highest first)
+    const sortedCustomers = customerScores
+      .sort((a, b) => b.score - a.score)
+      .map(item => item.customer);
+    
+    // With our expanded customer base of ~120 customers, 
+    // we'll maintain the same proportion of at-risk customers (25%)
+    // This will result in ~30 customers being flagged as at-risk
+    const atRiskCount = Math.max(1, Math.ceil(sortedCustomers.length * 0.25));
+    return sortedCustomers.slice(0, atRiskCount);
   }
 
   async getCustomerEngagementMetrics(id: number): Promise<any> {
@@ -504,6 +526,7 @@ export class MemStorage implements IStorage {
     const deals = Array.from(this.deals.values()).filter(deal => deal.customerId === id);
     const tickets = Array.from(this.tickets.values()).filter(ticket => ticket.customerId === id);
     const activities = Array.from(this.activityLogs.values()).filter(log => {
+      if (!log.relatedTo) return false;
       const [entityType, entityId] = log.relatedTo.split(':');
       return entityType === 'customer' && parseInt(entityId) === id;
     });
@@ -704,6 +727,7 @@ export class MemStorage implements IStorage {
       const customerTickets = tickets.filter(t => t.customerId === customer.id);
       const customerActivities = activities.filter(a => {
         // Parse the relatedTo field which has format 'entityType:entityId'
+        if (!a.relatedTo) return false;
         const [entityType, entityId] = a.relatedTo.split(':');
         return entityType === 'customer' && parseInt(entityId) === customer.id;
       });
@@ -870,14 +894,14 @@ export class MemStorage implements IStorage {
 
   // Initialize sample data for the CRM system
   private initSampleData() {
-    // Sample customers
+    // Sample customers - initial important customers
     this.createCustomer({
       name: "Michael Johnson",
       email: "michael@techsolutions.com",
       companyName: "Tech Solutions Inc.",
       phone: "+91-9876543210",
       status: "active",
-      totalSpent: "42500",
+      totalSpent: "1425000",
       lastOrderDate: "2023-05-15",
       avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=250"
     });
@@ -888,7 +912,7 @@ export class MemStorage implements IStorage {
       companyName: "Innovate Design Co.",
       phone: "+91-9876543211",
       status: "active",
-      totalSpent: "28700",
+      totalSpent: "987000",
       lastOrderDate: "2023-05-10",
       avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=250"
     });
@@ -899,7 +923,7 @@ export class MemStorage implements IStorage {
       companyName: "Global Enterprises Ltd.",
       phone: "+91-9876543212",
       status: "active",
-      totalSpent: "56200",
+      totalSpent: "1562000",
       lastOrderDate: "2023-05-05",
       avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=250"
     });
@@ -910,10 +934,84 @@ export class MemStorage implements IStorage {
       companyName: "NextGen Solutions",
       phone: "+91-9876543213",
       status: "active",
-      totalSpent: "31450",
+      totalSpent: "814500",
       lastOrderDate: "2023-04-28",
       avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=250"
     });
+    
+    // Generate approximately 116 more customers for a total of ~120 customers
+    const firstNames = ["Raj", "Priya", "Vikram", "Ananya", "Arjun", "Neha", "Karan", "Meera", "Aditya", "Sneha", 
+                       "Rahul", "Divya", "Rohan", "Pooja", "Amit", "Kavita", "Vijay", "Sunita", "Sanjay", "Anjali",
+                       "Suresh", "Deepa", "Mohan", "Ritu", "Rakesh", "Alok", "Nisha", "Varun", "Rohit", "Anil", 
+                       "Deepak", "Mayank", "Mira", "Sachin", "Vishal", "Maya", "Jatin", "Shruti", "Arnav", "Tanvi"];
+    
+    const lastNames = ["Sharma", "Patel", "Verma", "Agarwal", "Gupta", "Singh", "Kumar", "Mishra", "Joshi", "Malhotra",
+                       "Mehta", "Kapoor", "Das", "Shah", "Rao", "Reddy", "Khanna", "Chopra", "Suri", "Menon", 
+                       "Banerjee", "Sethi", "Bhatia", "Chatterjee", "Mukherjee", "Murthy", "Iyer", "Nair", "Thakur", "Yadav"];
+    
+    const companyPrefixes = ["Tech", "Global", "Innovative", "Digital", "Future", "Smart", "Cloud", "Cyber", "Data", "Infinity",
+                           "Nexus", "Vertex", "Horizon", "Vision", "Prime", "Quantum", "Pinnacle", "Stellar", "Synergy", "Apex"];
+    
+    const companySuffixes = ["Solutions", "Technologies", "Systems", "Innovations", "Enterprises", "Ventures", "Networks", "Analytics", 
+                           "Infosystems", "Infosec", "Computing", "Services", "Consultancy", "Dynamics", "Infotech", "Software", "Digital"];
+    
+    const statuses = ["active", "active", "active", "active", "inactive"]; // 80% active, 20% inactive
+    
+    // Current date for relative date calculations
+    const currentDate = new Date();
+    
+    for (let i = 0; i < 116; i++) {
+      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+      const companyPrefix = companyPrefixes[Math.floor(Math.random() * companyPrefixes.length)];
+      const companySuffix = companySuffixes[Math.floor(Math.random() * companySuffixes.length)];
+      
+      // Generate realistic spending data
+      const baseTotalSpent = Math.floor(Math.random() * 1500000) + 50000; // 50,000 to 1,550,000 INR
+      
+      // Generate realistic date within the last year
+      const daysAgo = Math.floor(Math.random() * 365);
+      const orderDate = new Date(currentDate);
+      orderDate.setDate(currentDate.getDate() - daysAgo);
+      
+      // Format date as YYYY-MM-DD
+      const lastOrderDate = orderDate.toISOString().split('T')[0];
+      
+      // Assign status
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      
+      // For inactive customers, push the last order date back further
+      const adjustedLastOrderDate = status === "inactive" 
+        ? new Date(orderDate.setDate(orderDate.getDate() - 180)).toISOString().split('T')[0]
+        : lastOrderDate;
+      
+      // Generate avatar URL
+      // Using a mix of male and female placeholder images from Unsplash
+      const avatarSets = [
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=250",
+        "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=250",
+        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=250",
+        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=250",
+        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=250",
+        "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=250",
+        "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=250",
+        "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=250"
+      ];
+      
+      // Create a domain from the name
+      const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${companyPrefix.toLowerCase()}${companySuffix.toLowerCase()}.com`;
+      
+      this.createCustomer({
+        name: `${firstName} ${lastName}`,
+        email: email,
+        companyName: `${companyPrefix} ${companySuffix}`,
+        phone: `+91-${Math.floor(Math.random() * 9000000000) + 1000000000}`,
+        status: status,
+        totalSpent: baseTotalSpent.toString(),
+        lastOrderDate: adjustedLastOrderDate,
+        avatar: avatarSets[Math.floor(Math.random() * avatarSets.length)]
+      });
+    }
 
     // Sample products
     this.createProduct({
@@ -962,6 +1060,102 @@ export class MemStorage implements IStorage {
       icon: "integration_instructions",
       trend: "15.7",
       stockAvailable: 75
+    });
+    
+    this.createProduct({
+      name: "Data Analytics Platform",
+      description: "Advanced analytics and reporting for business intelligence",
+      category: "Software",
+      price: "950000",
+      currency: "INR",
+      status: "active",
+      icon: "bar_chart",
+      trend: "18.3",
+      stockAvailable: 32
+    });
+    
+    this.createProduct({
+      name: "DevOps Automation Suite",
+      description: "Streamline development and operations workflows",
+      category: "Software",
+      price: "780000",
+      currency: "INR",
+      status: "active",
+      icon: "sync_alt",
+      trend: "9.6",
+      stockAvailable: 28
+    });
+    
+    this.createProduct({
+      name: "Cybersecurity Assessment",
+      description: "Comprehensive security audit and vulnerability testing",
+      category: "Services",
+      price: "650000",
+      currency: "INR",
+      status: "active",
+      icon: "security",
+      trend: "14.2",
+      stockAvailable: 50
+    });
+    
+    this.createProduct({
+      name: "Enterprise Backup Solution",
+      description: "Automated data backup and disaster recovery",
+      category: "Infrastructure",
+      price: "550000",
+      currency: "INR",
+      status: "active",
+      icon: "backup",
+      trend: "5.8",
+      stockAvailable: 40
+    });
+    
+    this.createProduct({
+      name: "Team Collaboration Platform",
+      description: "Integrated communication and project management tools",
+      category: "Software",
+      price: "420000",
+      currency: "INR",
+      status: "active",
+      icon: "group_work",
+      trend: "11.9",
+      stockAvailable: 85
+    });
+    
+    this.createProduct({
+      name: "Network Infrastructure Audit",
+      description: "Comprehensive assessment of network architecture",
+      category: "Services",
+      price: "375000",
+      currency: "INR",
+      status: "active",
+      icon: "device_hub",
+      trend: "-3.4",
+      stockAvailable: 25
+    });
+    
+    this.createProduct({
+      name: "Business Process Automation",
+      description: "Workflow optimization and automation solutions",
+      category: "Services",
+      price: "490000",
+      currency: "INR",
+      status: "active",
+      icon: "settings_applications",
+      trend: "7.5",
+      stockAvailable: 60
+    });
+    
+    this.createProduct({
+      name: "IT Staff Augmentation",
+      description: "Skilled IT professionals for project-based needs",
+      category: "Support",
+      price: "350000",
+      currency: "INR",
+      status: "active",
+      icon: "people",
+      trend: "4.3",
+      stockAvailable: 95
     });
 
     // Sample deals
