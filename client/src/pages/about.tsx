@@ -154,7 +154,7 @@ const About: React.FC = () => {
                 </CardContent>
               </Card>
               
-              <Card>
+              {/* <Card>
                 <CardHeader>
                   <CardTitle>Team Analytics</CardTitle>
                 </CardHeader>
@@ -165,7 +165,7 @@ const About: React.FC = () => {
                     Our system helps managers provide targeted coaching and optimize resource allocation.
                   </p>
                 </CardContent>
-              </Card>
+              </Card> */}
             </div>
           </TabsContent>
           
