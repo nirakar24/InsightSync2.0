@@ -57,7 +57,7 @@ Powerful predictive models, including churn prediction with **90% accuracy**, he
 
 Below are screenshots demonstrating key results and visualizations from the **InsightSync CRM** project:
 
-#### 1. Customer Overview Dashboard  
+#### 1. Overview Dashboard  
 ![image](https://github.com/user-attachments/assets/0809e95d-f3cd-405f-b5f1-70dcb66c6529)
 
 
