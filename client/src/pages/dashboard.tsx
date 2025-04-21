@@ -12,57 +12,94 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 
+interface SalesData {
+  pipeline: {
+    totalValue: number;
+    winRate: number;
+  };
+  conversion: {
+    leadToQualified: number;
+  };
+}
+
+interface ChurnData {
+  totalCustomers: number;
+}
+
+interface TeamData {
+  // Add team data interface if needed
+  performance: {
+    metrics: any; // Replace with actual team metrics type
+  };
+}
+
 const Dashboard: React.FC = () => {
   const [timeRange, setTimeRange] = useState('last30days');
   const { toast } = useToast();
-  
+
+  const handleError = (error: Error) => {
+    console.error('Error fetching data:', error);
+    toast({
+      title: "Error",
+      description: "Failed to load dashboard data",
+      variant: "destructive"
+    });
+  };
+
   // Fetch sales performance data
-  const { data: salesData } = useQuery({
-    queryKey: ['/api/analytics/dashboard/sales-performance'],
+  const { data: salesData, error: salesError } = useQuery<SalesData, Error>({
+    queryKey: ['sales-performance'],
+    queryFn: async () => {
+      const response = await fetch('/api/analytics/dashboard/sales-performance');
+      if (!response.ok) {
+        throw new Error('Failed to fetch sales data');
+      }
+      const data: SalesData = await response.json();
+      return data;
+    },
     retry: 1,
     gcTime: 300000,
-    staleTime: 60000,
-    onError: (error) => {
-      console.error('Error fetching sales data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load sales performance data",
-        variant: "destructive"
-      });
-    }
+    staleTime: 60000
   });
 
   // Fetch team analytics data
-  const { data: teamData } = useQuery({
-    queryKey: ['/api/analytics/dashboard/team-analytics'],
+  const { data: teamData, error: teamError } = useQuery<TeamData, Error>({
+    queryKey: ['team-analytics'],
+    queryFn: async () => {
+      const response = await fetch('/api/analytics/dashboard/team-analytics');
+      if (!response.ok) {
+        throw new Error('Failed to fetch team data');
+      }
+      const data: TeamData = await response.json();
+      return data;
+    },
     retry: 1,
     gcTime: 300000,
-    staleTime: 60000,
-    onError: (error) => {
-      console.error('Error fetching team data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load team analytics data",
-        variant: "destructive"
-      });
-    }
+    staleTime: 60000
   });
   
   // Fetch churn metrics data which includes total customers
-  const { data: churnData } = useQuery({
-    queryKey: ['/api/analytics/dashboard/churn-metrics'],
+  const { data: churnData, error: churnError } = useQuery<ChurnData, Error>({
+    queryKey: ['churn-metrics'],
+    queryFn: async () => {
+      const response = await fetch('/api/analytics/dashboard/churn-metrics');
+      if (!response.ok) {
+        throw new Error('Failed to fetch churn data');
+      }
+      const data: ChurnData = await response.json();
+      return data;
+    },
     retry: 1,
     gcTime: 300000,
-    staleTime: 60000,
-    onError: (error) => {
-      console.error('Error fetching churn data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load customer churn data",
-        variant: "destructive"
-      });
-    }
+    staleTime: 60000
   });
+
+  // Handle errors from all queries
+  React.useEffect(() => {
+    if (salesError) handleError(salesError);
+    if (teamError) handleError(teamError);
+    if (churnError) handleError(churnError);
+  }, [salesError, teamError, churnError]);
 
   return (
     <Layout>
@@ -84,17 +121,11 @@ const Dashboard: React.FC = () => {
                 <option value="last7days">Last 7 days</option>
                 <option value="last30days">Last 30 days</option>
                 <option value="last90days">Last 90 days</option>
-                <option value="thisyear">This Year</option>
               </select>
               <span className="material-icons absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-500 dark:text-slate-400 pointer-events-none text-sm">
                 expand_more
               </span>
             </div>
-            
-            <button className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md bg-secondary text-white hover:bg-secondary/90">
-              <span className="material-icons text-sm mr-1">download</span>
-              <span>Export Report</span>
-            </button>
           </div>
         </div>
         
@@ -102,7 +133,7 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <KpiCard 
             title="Total Revenue" 
-            value={salesData?.pipeline?.totalValue ? `₹${(salesData.pipeline.totalValue / 100000).toFixed(1)}L` : "₹24.5L"} 
+            value={salesData?.pipeline?.totalValue ? `₹${(salesData.pipeline.totalValue / 100000).toFixed(1)}L` : "₹85.4L"} 
             change={12.5} 
             icon="payments" 
             color="blue" 
@@ -110,7 +141,7 @@ const Dashboard: React.FC = () => {
           
           <KpiCard 
             title="Total Customers" 
-            value={churnData?.totalCustomers ? churnData.totalCustomers.toString() : "120"} 
+            value={churnData?.totalCustomers ? churnData.totalCustomers.toString() : "847"} 
             change={5.2} 
             icon="people" 
             color="indigo" 
@@ -118,7 +149,7 @@ const Dashboard: React.FC = () => {
           
           <KpiCard 
             title="Conversion Rate" 
-            value={salesData?.conversion?.leadToQualified ? `${salesData.conversion.leadToQualified}%` : "24.8%"} 
+            value={salesData?.conversion?.leadToQualified ? `${salesData.conversion.leadToQualified}%` : "32.5%"} 
             change={-1.7} 
             icon="autorenew" 
             color="purple" 
@@ -126,7 +157,7 @@ const Dashboard: React.FC = () => {
           
           <KpiCard 
             title="Win Rate" 
-            value={salesData?.pipeline?.winRate ? `${salesData.pipeline.winRate}%` : "68.9%"} 
+            value={salesData?.pipeline?.winRate ? `${salesData.pipeline.winRate}%` : "58.9%"} 
             change={3.8} 
             icon="verified" 
             color="amber" 
@@ -144,7 +175,7 @@ const Dashboard: React.FC = () => {
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               <div className="lg:col-span-2">
-                <RevenueChart />
+                <RevenueChart timeRange={timeRange} />
               </div>
               <CategoryPieChart />
             </div>

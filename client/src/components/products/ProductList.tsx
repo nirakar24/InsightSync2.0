@@ -29,75 +29,91 @@ import {
 } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import * as z from "zod";
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-
-interface Product {
-  id: number;
-  name: string;
-  description: string;
-  category: string;
-  price: string;
-  currency: string;
-  status: string;
-  icon: string;
-  trend: string;
-  stockAvailable?: number;
-  needsRestock?: boolean;
-  popularity?: number;
-}
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Product, ProductFormData, indianCategories, indianUnits, formatIndianPrice } from '@/types/product';
 
 interface ProductListProps {
-  onProductClick?: (productId: number) => void;
+  onProductClick?: (productId: string) => void;
   showPerformanceData?: boolean;
 }
 
 const formSchema = z.object({
-  name: z.string().min(3, { message: "Name must be at least 3 characters." }),
-  description: z.string().optional(),
-  category: z.string().min(2, { message: "Category is required." }),
-  price: z.string().min(1, { message: "Price is required." }),
-  currency: z.string().default("INR"),
-  status: z.string().default("active"),
+  name: z.string().min(2).max(100),
+  description: z.string().min(10).max(500),
+  category: z.string().min(2),
+  price: z.number().min(0),
+  mrp: z.number().min(0),
+  gst: z.number().min(0).max(28),
+  hsn: z.string().min(4).max(8),
+  unit: z.string().min(1),
+  brand: z.string().min(2),
+  manufacturer: z.string().min(2),
+  origin: z.string().min(2),
+  tags: z.array(z.string()),
   icon: z.string().optional(),
-  trend: z.string().default("0"),
 });
 
 const ProductList: React.FC<ProductListProps> = ({ onProductClick, showPerformanceData = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [open, setOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
-
-  const { data: products, isLoading } = useQuery<Product[]>({
-    queryKey: ['/api/products'],
-  });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
-      description: "",
-      category: "",
-      price: "",
-      currency: "INR",
-      status: "active",
-      icon: "inventory_2",
-      trend: "0",
+      name: '',
+      description: '',
+      category: '',
+      price: 0,
+      mrp: 0,
+      gst: 0,
+      hsn: '',
+      unit: '',
+      brand: '',
+      manufacturer: '',
+      origin: 'India',
+      tags: [],
+      icon: 'inventory_2',
+    },
+  });
+
+  const { data: products, isLoading } = useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const response = await fetch('/api/products');
+      if (!response.ok) throw new Error('Failed to fetch products');
+      return response.json();
     },
   });
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
-      await apiRequest('POST', '/api/products', data);
-      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) throw new Error('Failed to add product');
+      
+      setIsDialogOpen(false);
+      form.reset();
+      // Invalidate and refetch products
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       toast({
         title: "Product added",
         description: "The product has been added successfully.",
       });
-      form.reset();
-      setOpen(false);
     } catch (error) {
       toast({
         title: "Error",
@@ -107,58 +123,42 @@ const ProductList: React.FC<ProductListProps> = ({ onProductClick, showPerforman
     }
   };
 
-  const filteredProducts = products?.filter(product => 
+  const filteredProducts = products?.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    product.brand.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const formatCurrency = (amount: string) => {
-    const numValue = parseFloat(amount);
-    if (numValue >= 1000000) {
-      return `₹${(numValue / 100000).toFixed(2)}L`;
-    }
-    return `₹${parseInt(amount).toLocaleString('en-IN')}`;
-  };
-
   const getIconColor = (category: string) => {
-    switch (category.toLowerCase()) {
-      case 'software':
-        return 'bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400';
-      case 'support':
-        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400';
-      case 'infrastructure':
-        return 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
-      case 'services':
-        return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400';
-      case 'hardware':
-        return 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400';
-      default:
-        return 'bg-slate-100 dark:bg-slate-900/30 text-slate-600 dark:text-slate-400';
-    }
+    const colors: Record<string, string> = {
+      'Groceries': 'bg-green-100 dark:bg-green-900',
+      'Beverages': 'bg-blue-100 dark:bg-blue-900',
+      'Personal Care': 'bg-purple-100 dark:bg-purple-900',
+      'Home Care': 'bg-yellow-100 dark:bg-yellow-900',
+      'Kitchen Appliances': 'bg-red-100 dark:bg-red-900',
+      'Electronics': 'bg-indigo-100 dark:bg-indigo-900',
+      'Fashion': 'bg-pink-100 dark:bg-pink-900',
+    };
+    return colors[category] || 'bg-slate-100 dark:bg-slate-900';
   };
 
   return (
-    <div>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <div className="w-full md:w-96">
-          <Input
-            placeholder="Search products..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full"
-          />
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <Input
+          placeholder="Search products..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>Add Product</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Add New Product</DialogTitle>
-              <DialogDescription>
-                Enter the product details below to add it to your catalog.
-              </DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -188,45 +188,138 @@ const ProductList: React.FC<ProductListProps> = ({ onProductClick, showPerforman
                     </FormItem>
                   )}
                 />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {indianCategories.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="unit"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Unit</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select unit" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {indianUnits.map((unit) => (
+                              <SelectItem key={unit} value={unit}>
+                                {unit}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Price (₹)</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} onChange={e => field.onChange(+e.target.value)} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="mrp"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>MRP (₹)</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} onChange={e => field.onChange(+e.target.value)} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="gst"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>GST (%)</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} onChange={e => field.onChange(+e.target.value)} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <FormField
                   control={form.control}
-                  name="category"
+                  name="hsn"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
+                      <FormLabel>HSN Code</FormLabel>
                       <FormControl>
-                        <Input placeholder="Software, Hardware, etc." {...field} />
+                        <Input placeholder="HSN Code" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Price (INR)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="10000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="icon"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Icon</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Material icon name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="brand"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Brand</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Brand name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="manufacturer"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Manufacturer</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Manufacturer name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <DialogFooter>
                   <Button type="submit">Save Product</Button>
                 </DialogFooter>
@@ -251,16 +344,18 @@ const ProductList: React.FC<ProductListProps> = ({ onProductClick, showPerforman
                 <TableHead>Product</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Price</TableHead>
+                <TableHead>MRP</TableHead>
+                <TableHead>GST</TableHead>
+                <TableHead>Stock</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Trend</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredProducts?.map((product) => (
                 <TableRow 
-                  key={product.id}
+                  key={product._id}
                   className={onProductClick ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800" : ""}
-                  onClick={() => onProductClick && onProductClick(product.id)}
+                  onClick={() => onProductClick && onProductClick(product._id)}
                 >
                   <TableCell>
                     <div className="flex items-center">
@@ -269,16 +364,23 @@ const ProductList: React.FC<ProductListProps> = ({ onProductClick, showPerforman
                       </div>
                       <div>
                         <div className="font-medium">{product.name}</div>
-                        {product.description && (
-                          <div className="text-xs text-slate-500 dark:text-slate-400 max-w-xs truncate">
-                            {product.description}
-                          </div>
-                        )}
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          {product.brand} • {product.unit}
+                        </div>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>{product.category}</TableCell>
-                  <TableCell>{formatCurrency(product.price)}</TableCell>
+                  <TableCell>{formatIndianPrice(product.price)}</TableCell>
+                  <TableCell>{formatIndianPrice(product.mrp)}</TableCell>
+                  <TableCell>{product.gst}%</TableCell>
+                  <TableCell>
+                    <div className="flex items-center">
+                      <span className={product.stockAvailable > 0 ? 'text-green-600' : 'text-red-600'}>
+                        {product.stockAvailable}
+                      </span>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -286,41 +388,11 @@ const ProductList: React.FC<ProductListProps> = ({ onProductClick, showPerforman
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                           : product.status === 'inactive'
                           ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-                          : product.status === 'out-of-stock'
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                          : 'bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                       }`}
                     >
-                      {product.status ? product.status.charAt(0).toUpperCase() + product.status.slice(1) : 'Unknown'}
+                      {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
                     </span>
-                  </TableCell>
-                  <TableCell>
-                    {showPerformanceData && product.popularity ? (
-                      <div className="flex items-center">
-                        <div className="w-16 bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 mr-2">
-                          <div 
-                            className="bg-green-600 h-2.5 rounded-full" 
-                            style={{ width: `${Math.min(100, product.popularity)}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">{product.popularity}%</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center">
-                        <span
-                          className={`${
-                            parseFloat(product.trend) >= 0
-                              ? 'text-green-500'
-                              : 'text-red-500'
-                          } flex items-center`}
-                        >
-                          <span className="material-icons text-sm mr-0.5">
-                            {parseFloat(product.trend) >= 0 ? 'trending_up' : 'trending_down'}
-                          </span>
-                          {Math.abs(parseFloat(product.trend))}%
-                        </span>
-                      </div>
-                    )}
                   </TableCell>
                 </TableRow>
               ))}

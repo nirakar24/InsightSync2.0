@@ -39,87 +39,98 @@ interface ChurnMetrics {
   }[];
 }
 
+const defaultChurnData: ChurnMetrics = {
+  currentChurnRate: '3.8%',
+  atRiskCount: 32,
+  totalCustomers: 847,
+  atRiskPercentage: '3.8%',
+  monthlyChurn: [
+    {
+      month: 'Jan',
+      churnRate: '3.2%',
+      newCustomers: 45,
+      lostCustomers: 12
+    },
+    {
+      month: 'Feb',
+      churnRate: '3.4%',
+      newCustomers: 52,
+      lostCustomers: 15
+    },
+    {
+      month: 'Mar',
+      churnRate: '3.5%',
+      newCustomers: 48,
+      lostCustomers: 16
+    },
+    {
+      month: 'Apr',
+      churnRate: '3.7%',
+      newCustomers: 55,
+      lostCustomers: 18
+    },
+    {
+      month: 'May',
+      churnRate: '3.8%',
+      newCustomers: 50,
+      lostCustomers: 19
+    },
+    {
+      month: 'Jun',
+      churnRate: '3.8%',
+      newCustomers: 47,
+      lostCustomers: 18
+    }
+  ],
+  topChurnReasons: [
+    {
+      reason: 'Price Concerns',
+      percentage: 35
+    },
+    {
+      reason: 'Competitor Offers',
+      percentage: 25
+    },
+    {
+      reason: 'Product Features',
+      percentage: 20
+    },
+    {
+      reason: 'Customer Service',
+      percentage: 12
+    },
+    {
+      reason: 'Other',
+      percentage: 8
+    }
+  ]
+};
+
 const CustomerChurnMetrics: React.FC = () => {
   const { toast } = useToast();
   
   // Get churn metrics
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['/api/analytics/dashboard/churn-metrics'],
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to load churn metrics data",
-        variant: "destructive"
-      });
+  const { data, isLoading, isError } = useQuery<ChurnMetrics>({
+    queryKey: ['churn-metrics'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/analytics/dashboard/churn-metrics');
+        if (!response.ok) {
+          throw new Error('Failed to fetch churn metrics');
+        }
+        return response.json();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load churn metrics data",
+          variant: "destructive"
+        });
+        throw error;
+      }
     }
   });
 
-  const churnData: ChurnMetrics = data || {
-    currentChurnRate: '4.2%',
-    atRiskCount: 15,
-    totalCustomers: 345,
-    atRiskPercentage: '4.3%',
-    monthlyChurn: [
-      {
-        month: 'Jan',
-        churnRate: '3.2%',
-        newCustomers: 24,
-        lostCustomers: 8
-      },
-      {
-        month: 'Feb',
-        churnRate: '3.5%',
-        newCustomers: 21,
-        lostCustomers: 9
-      },
-      {
-        month: 'Mar',
-        churnRate: '3.8%',
-        newCustomers: 18,
-        lostCustomers: 10
-      },
-      {
-        month: 'Apr',
-        churnRate: '4.0%',
-        newCustomers: 16,
-        lostCustomers: 12
-      },
-      {
-        month: 'May',
-        churnRate: '4.2%',
-        newCustomers: 19,
-        lostCustomers: 14
-      },
-      {
-        month: 'Jun',
-        churnRate: '3.9%',
-        newCustomers: 22,
-        lostCustomers: 11
-      }
-    ],
-    topChurnReasons: [
-      {
-        reason: 'Price Concerns',
-        percentage: 35
-      },
-      {
-        reason: 'Competitor Offers',
-        percentage: 25
-      },
-      {
-        reason: 'Product Features',
-        percentage: 20
-      },
-      {
-        reason: 'Customer Service',
-        percentage: 12
-      },
-      {
-        reason: 'Other',
-        percentage: 8
-      }
-    ]
-  };
+  const churnData = data || defaultChurnData;
 
   // Convert string percentages to numbers for charting
   const monthlyChurnData = churnData.monthlyChurn.map(item => ({

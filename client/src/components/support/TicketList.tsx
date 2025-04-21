@@ -213,9 +213,63 @@ const TicketList: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Filter Controls */}
-      <div className="flex flex-wrap gap-4">
-        <div className="w-full md:w-96">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Support Tickets</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Manage and resolve customer support issues</p>
+      </div>
+
+      <div className="grid grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 p-4">
+          <div className="flex flex-col">
+            <span className="text-sm text-slate-500 dark:text-slate-400">Open Tickets</span>
+            <span className="text-2xl font-bold text-slate-900 dark:text-white">
+              {tickets?.filter(t => t.status.toLowerCase() === 'open').length || 0}
+            </span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 mt-1 self-start">
+              Open
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 p-4">
+          <div className="flex flex-col">
+            <span className="text-sm text-slate-500 dark:text-slate-400">In Progress</span>
+            <span className="text-2xl font-bold text-slate-900 dark:text-white">
+              {tickets?.filter(t => t.status.toLowerCase() === 'in progress').length || 0}
+            </span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 mt-1 self-start">
+              In Progress
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 p-4">
+          <div className="flex flex-col">
+            <span className="text-sm text-slate-500 dark:text-slate-400">High Priority</span>
+            <span className="text-2xl font-bold text-slate-900 dark:text-white">
+              {tickets?.filter(t => t.priority.toLowerCase() === 'high').length || 0}
+            </span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 mt-1 self-start">
+              High
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 p-4">
+          <div className="flex flex-col">
+            <span className="text-sm text-slate-500 dark:text-slate-400">Resolved</span>
+            <span className="text-2xl font-bold text-slate-900 dark:text-white">
+              {tickets?.filter(t => t.status.toLowerCase() === 'resolved').length || 0}
+            </span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 mt-1 self-start">
+              Resolved
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
           <Input
             placeholder="Search tickets..."
             value={searchTerm}
@@ -223,80 +277,38 @@ const TicketList: React.FC = () => {
             className="w-full"
           />
         </div>
-        
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={statusFilter === null ? "default" : "outline"}
-            onClick={() => setStatusFilter(null)}
-            className="text-xs h-9"
-          >
-            All Status
-          </Button>
-          <Button
-            variant={statusFilter === "open" ? "default" : "outline"}
-            onClick={() => setStatusFilter("open")}
-            className="text-xs h-9"
-          >
-            Open
-          </Button>
-          <Button
-            variant={statusFilter === "in progress" ? "default" : "outline"}
-            onClick={() => setStatusFilter("in progress")}
-            className="text-xs h-9"
-          >
-            In Progress
-          </Button>
-          <Button
-            variant={statusFilter === "resolved" ? "default" : "outline"}
-            onClick={() => setStatusFilter("resolved")}
-            className="text-xs h-9"
-          >
-            Resolved
-          </Button>
-          <Button
-            variant={statusFilter === "closed" ? "default" : "outline"}
-            onClick={() => setStatusFilter("closed")}
-            className="text-xs h-9"
-          >
-            Closed
-          </Button>
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={priorityFilter === null ? "default" : "outline"}
-            onClick={() => setPriorityFilter(null)}
-            className="text-xs h-9"
-          >
-            All Priority
-          </Button>
-          <Button
-            variant={priorityFilter === "high" ? "default" : "outline"}
-            onClick={() => setPriorityFilter("high")}
-            className="text-xs h-9"
-          >
-            High
-          </Button>
-          <Button
-            variant={priorityFilter === "medium" ? "default" : "outline"}
-            onClick={() => setPriorityFilter("medium")}
-            className="text-xs h-9"
-          >
-            Medium
-          </Button>
-          <Button
-            variant={priorityFilter === "low" ? "default" : "outline"}
-            onClick={() => setPriorityFilter("low")}
-            className="text-xs h-9"
-          >
-            Low
-          </Button>
-        </div>
-        
-        <div className="ml-auto">
+        <div className="flex gap-2">
+          <Select value={statusFilter || 'all'} onValueChange={(value) => setStatusFilter(value === 'all' ? null : value)}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="open">Open</SelectItem>
+              <SelectItem value="in progress">In Progress</SelectItem>
+              <SelectItem value="resolved">Resolved</SelectItem>
+              <SelectItem value="closed">Closed</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={priorityFilter || 'all'} onValueChange={(value) => setPriorityFilter(value === 'all' ? null : value)}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="All Priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Priority</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button>Create Ticket</Button>
+              <Button>
+                <span className="material-icons text-sm mr-1">add</span>
+                Create Ticket
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>

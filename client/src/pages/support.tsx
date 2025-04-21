@@ -49,10 +49,7 @@ const Support: React.FC = () => {
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Support Tickets</h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Manage and resolve customer support issues</p>
           </div>
-          <Button>
-            <span className="material-icons text-sm mr-1">add</span>
-            Create Ticket
-          </Button>
+          
         </div>
         
         {/* Ticket Stats */}

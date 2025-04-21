@@ -9,20 +9,54 @@ interface CategoryData {
   percentage: string;
 }
 
+const defaultCategoryData: CategoryData[] = [
+  {
+    id: 1,
+    category: 'Enterprise Solutions',
+    value: '38.5L',
+    percentage: '45'
+  },
+  {
+    id: 2,
+    category: 'SMB Services',
+    value: '25.6L',
+    percentage: '30'
+  },
+  {
+    id: 3,
+    category: 'Consulting',
+    value: '12.8L',
+    percentage: '15'
+  },
+  {
+    id: 4,
+    category: 'Support & Training',
+    value: '8.5L',
+    percentage: '10'
+  }
+];
+
 const CategoryPieChart: React.FC = () => {
   const { data: categoryData, isLoading } = useQuery<CategoryData[]>({
-    queryKey: ['/api/dashboard/category-sales'],
+    queryKey: ['category-sales'],
+    queryFn: async () => {
+      const response = await fetch('/api/dashboard/category-sales');
+      if (!response.ok) {
+        throw new Error('Failed to fetch category data');
+      }
+      return response.json();
+    }
   });
 
   // Colors for the different categories
   const COLORS = ['#3B82F6', '#22C55E', '#F59E0B', '#A855F7'];
 
   // Format data for Recharts
-  const chartData = categoryData?.map((item, index) => ({
+  const chartData = (categoryData || defaultCategoryData).map((item, index) => ({
     name: item.category,
     value: parseFloat(item.percentage),
     color: COLORS[index % COLORS.length],
-  })) || [];
+  }));
 
   const renderCustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -54,11 +88,8 @@ const CategoryPieChart: React.FC = () => {
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 p-5">
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4">
         <h3 className="font-semibold text-slate-900 dark:text-white">Sales by Category</h3>
-        <button className="text-slate-500 dark:text-slate-400">
-          <span className="material-icons text-sm">more_vert</span>
-        </button>
       </div>
 
       <div className="h-48">

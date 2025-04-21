@@ -11,6 +11,11 @@ import {
   insertTeamMemberSchema,
   insertActivityLogSchema
 } from "@shared/schema";
+import { Router } from 'express';
+import { prisma } from './db';
+import { calculateChurnRate, calculateRevenue } from './utils';
+import { format, subDays } from 'date-fns';
+import { Parser } from 'json2csv';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes prefix
@@ -551,6 +556,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid team member data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to update team member" });
+    }
+  });
+
+  // Export dashboard data endpoint
+  app.get(`${apiPrefix}/dashboard/export`, async (req, res) => {
+    try {
+      const { timeRange = 'last30days' } = req.query;
+      const endDate = new Date();
+      let startDate;
+
+      switch (timeRange) {
+        case 'last7days':
+          startDate = subDays(endDate, 7);
+          break;
+        case 'last90days':
+          startDate = subDays(endDate, 90);
+          break;
+        default: // last30days
+          startDate = subDays(endDate, 30);
+      }
+
+      // Fetch all required data
+      const [revenue, categorySales, churnMetrics] = await Promise.all([
+        calculateRevenue(startDate, endDate),
+        prisma.sale.groupBy({
+          by: ['category'],
+          where: {
+            date: {
+              gte: startDate,
+              lte: endDate,
+            },
+          },
+          _sum: {
+            amount: true,
+          },
+        }),
+        calculateChurnRate(startDate, endDate),
+      ]);
+
+      // Prepare data for CSV
+      const csvData = {
+        revenue: revenue.total,
+        averageOrderValue: revenue.averageOrderValue,
+        categorySales: categorySales.map(cat => ({
+          category: cat.category,
+          amount: cat._sum.amount || 0,
+        })),
+        churnRate: churnMetrics.churnRate,
+        retentionRate: churnMetrics.retentionRate,
+        totalCustomers: churnMetrics.totalCustomers,
+        churnedCustomers: churnMetrics.churnedCustomers,
+      };
+
+      // Convert to CSV
+      const fields = [
+        'Revenue',
+        'Average Order Value',
+        'Category Sales',
+        'Churn Rate',
+        'Retention Rate',
+        'Total Customers',
+        'Churned Customers',
+      ];
+      
+      const parser = new Parser({ fields });
+      const csv = parser.parse([{
+        'Revenue': `$${csvData.revenue.toFixed(2)}`,
+        'Average Order Value': `$${csvData.averageOrderValue.toFixed(2)}`,
+        'Category Sales': csvData.categorySales.map(cat => `${cat.category}: $${cat.amount.toFixed(2)}`).join('; '),
+        'Churn Rate': `${(csvData.churnRate * 100).toFixed(1)}%`,
+        'Retention Rate': `${(csvData.retentionRate * 100).toFixed(1)}%`,
+        'Total Customers': csvData.totalCustomers,
+        'Churned Customers': csvData.churnedCustomers,
+      }]);
+
+      // Send CSV file
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=dashboard-report-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      res.send(csv);
+    } catch (error) {
+      console.error('Error generating export:', error);
+      res.status(500).json({ error: 'Failed to generate export' });
     }
   });
 

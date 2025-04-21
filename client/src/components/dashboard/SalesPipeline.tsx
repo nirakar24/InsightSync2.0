@@ -14,10 +14,66 @@ interface Deal {
   updatedAt: string;
 }
 
+const defaultDeals: Deal[] = [
+  {
+    id: 1,
+    customerId: 1,
+    companyName: "TechCorp Solutions",
+    title: "Enterprise Platform License",
+    stage: "proposal",
+    value: "2500000",
+    probability: 75,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 2,
+    customerId: 2,
+    companyName: "Global Industries",
+    title: "Digital Transformation Project",
+    stage: "qualified",
+    value: "1800000",
+    probability: 60,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 3,
+    customerId: 3,
+    companyName: "Innovate Systems",
+    title: "Cloud Migration Service",
+    stage: "lead",
+    value: "1200000",
+    probability: 40,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 4,
+    customerId: 4,
+    companyName: "SmartTech Inc",
+    title: "Annual Support Contract",
+    stage: "closed",
+    value: "900000",
+    probability: 100,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+];
+
 const SalesPipeline: React.FC = () => {
   const { data: deals, isLoading } = useQuery<Deal[]>({
-    queryKey: ['/api/deals'],
+    queryKey: ['deals'],
+    queryFn: async () => {
+      const response = await fetch('/api/deals');
+      if (!response.ok) {
+        throw new Error('Failed to fetch deals');
+      }
+      return response.json();
+    }
   });
+
+  const pipelineDeals = deals || defaultDeals;
 
   const formatCurrency = (amount: string) => {
     const numValue = parseFloat(amount);
@@ -50,7 +106,7 @@ const SalesPipeline: React.FC = () => {
     closed: 0
   };
 
-  deals?.forEach(deal => {
+  pipelineDeals.forEach(deal => {
     const value = parseFloat(deal.value);
     if (deal.stage === 'lead') stageValues.lead += value;
     else if (deal.stage === 'qualified') stageValues.qualified += value;
@@ -198,7 +254,7 @@ const SalesPipeline: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-            {deals?.map((deal) => (
+            {pipelineDeals.map((deal) => (
               <tr key={deal.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                 <td className="py-3">
                   <div className="font-medium text-slate-900 dark:text-white">{deal.companyName}</div>

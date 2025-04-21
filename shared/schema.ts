@@ -1,5 +1,5 @@
-import { pgTable, text, serial, integer, boolean, timestamp, numeric, date } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
+import { pgTable, text, serial, integer, boolean, timestamp, numeric, date, decimal } from "drizzle-orm/pg-core";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Customer schema
@@ -21,6 +21,10 @@ export const customers = pgTable("customers", {
   acquisitionChannel: text("acquisition_channel"),
   segment: text("segment").default("general"),
   notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  churnedAt: timestamp("churned_at"),
+  churned: boolean("churned").default(false),
 });
 
 export const insertCustomerSchema = createInsertSchema(customers).omit({
@@ -33,7 +37,7 @@ export const products = pgTable("products", {
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(),
-  price: numeric("price").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   currency: text("currency").default("INR"),
   status: text("status").default("active"),
   icon: text("icon"),
@@ -46,6 +50,9 @@ export const products = pgTable("products", {
   vendor: text("vendor"),
   launchDate: date("launch_date"),
   specifications: text("specifications"), // JSON string for product specs
+  image: text("image"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const insertProductSchema = createInsertSchema(products).omit({
@@ -86,8 +93,8 @@ export const tickets = pgTable("tickets", {
   customerId: integer("customer_id").notNull(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  status: text("status").notNull(), // open, in progress, resolved, closed
-  priority: text("priority").notNull(), // low, medium, high
+  status: text("status").notNull().default("open"),
+  priority: text("priority").notNull().default("medium"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   // New fields for support ticket system
@@ -142,6 +149,8 @@ export const teamMembers = pgTable("team_members", {
   ticketsResolved: integer("tickets_resolved").default(0),
   performanceScore: numeric("performance_score").default("0"),
   joinDate: date("join_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({
@@ -200,6 +209,17 @@ export const insertCategorySalesSchema = createInsertSchema(categorySales).omit(
   id: true,
 });
 
+// Sales table
+export const sales = pgTable('sales', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id),
+  productId: integer('product_id').references(() => products.id),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  date: timestamp('date').defaultNow(),
+});
+
+export const insertSaleSchema = createInsertSchema(sales);
+
 // Define the types
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
@@ -227,3 +247,6 @@ export type InsertRevenueMetric = z.infer<typeof insertRevenueMetricsSchema>;
 
 export type CategorySale = typeof categorySales.$inferSelect;
 export type InsertCategorySale = z.infer<typeof insertCategorySalesSchema>;
+
+export type Sale = typeof sales.$inferSelect;
+export type InsertSale = z.infer<typeof insertSaleSchema>;
